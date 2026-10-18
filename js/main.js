@@ -168,10 +168,15 @@ function layout() {
   introTop = intro.offsetTop; introH = intro.offsetHeight;
   flightTop = flight.offsetTop; flightH = flight.offsetHeight;
   flightEnd = flightTop + flightH;
-  const mid = (el, k = 0.5) => el.offsetTop + el.offsetHeight * k - vh * 0.5;
+  // offsetTop is measured against the offsetParent, which for anything inside a section is the
+  // section itself — so sum the chain, or a station pinned to nested content lands a screen early.
+  const docTop = (el) => { let t = 0; for (let n = el; n; n = n.offsetParent) t += n.offsetTop; return t; };
+  const mid = (el, k = 0.5) => docTop(el) + el.offsetHeight * k - vh * 0.5;
   const raw = [
     [0, 0], [introTop, 1], [flightTop, 2], [flightEnd - vh, 3],
     [mid($('#work'), 0), 3.4], [mid($('#work')), 4],
+    // the climb out of shot is pinned to the grid itself, so it clears whatever the grid grows to
+    [mid($('.cards'), 0.1), 4.12], [mid($('.cards'), 1), 4.2],
     [mid($('#study'), 0.5), 4.3],
     [mid($('#services'), 0), 4.6], [mid($('#services')), 5], [mid($('#services'), 1), 5.5],
     [mid($('#grammar'), 0.5), 5.8],
