@@ -164,6 +164,84 @@ export function createWorld({ canvas, drone, quality }) {
     new THREE.MeshBasicMaterial({ color: EMBER, transparent: true, opacity: 0.8, side: THREE.DoubleSide }));
   baseRing.rotation.x = -Math.PI / 2; baseRing.position.y = 0.01; pin.add(baseRing);
 
+  // A surrounding district, instanced so the whole city is one draw call. Generated rather than
+  // downloaded: a stock low-poly kit would not sit in this light, and this way the massing,
+  // density and window warmth are all art-directed.
+  const CITY_VS = `
+    attribute float aSeed;
+    varying vec3 vPos; varying vec3 vScale; varying float vSeed; varying vec3 vN; varying float vDist;
+    void main(){
+      vScale = vec3(length(instanceMatrix[0].xyz), length(instanceMatrix[1].xyz), length(instanceMatrix[2].xyz));
+      vPos = position; vSeed = aSeed; vN = normal;
+      vec4 wp = modelMatrix * instanceMatrix * vec4(position, 1.0);
+      vDist = distance(cameraPosition, wp.xyz);
+      gl_Position = projectionMatrix * viewMatrix * wp;
+    }`;
+  const CITY_FS = `
+    uniform vec3 uInk; uniform vec3 uWin; uniform vec3 uCool; uniform float uFade; uniform float uLit;
+    varying vec3 vPos; varying vec3 vScale; varying float vSeed; varying vec3 vN; varying float vDist;
+    float hash(vec2 p){ p = fract(p * vec2(443.897, 441.423)); p += dot(p, p + 19.19); return fract(p.x * p.y); }
+    void main(){
+      vec3 an = abs(normalize(vN));
+      vec2 uv;
+      if (an.y > 0.5) uv = vPos.xz * vScale.xz;
+      else if (an.x > 0.5) uv = vec2(vPos.z * vScale.z, vPos.y * vScale.y);
+      else uv = vec2(vPos.x * vScale.x, vPos.y * vScale.y);
+      // facade tone: darker at the base, slightly cooler up high
+      float up = clamp(vPos.y + 0.5, 0.0, 1.0);
+      vec3 col = mix(uInk * 0.72, uCool, up * 0.3);
+      if (an.y < 0.5) {
+        // small windows, mostly dark; a few warm. Whole towers vary in how lived-in they look.
+        vec2 grid = vec2(0.17, 0.26);
+        vec2 cell = floor(uv / grid);
+        float r = hash(cell + vSeed * 37.0);
+        vec2 f = fract(uv / grid);
+        float inWin = step(0.22, f.x) * step(f.x, 0.72) * step(0.26, f.y) * step(f.y, 0.78);
+        float occupancy = 0.12 + 0.3 * hash(vec2(vSeed, 3.7));
+        float lit = step(1.0 - occupancy, r) * uLit;
+        col += uWin * inWin * lit * (0.3 + 0.32 * hash(cell + 7.1));
+      }
+      float fog = smoothstep(16.0, 120.0, vDist);
+      col = mix(col, uInk, fog);
+      gl_FragColor = vec4(mix(uInk, col, uFade), 1.0);
+    }`;
+  const cityCount = quality.city;
+  const cityMat = new THREE.ShaderMaterial({
+    vertexShader: CITY_VS, fragmentShader: CITY_FS,
+    uniforms: {
+      uInk: { value: new THREE.Color(0x0d1119) }, uWin: { value: new THREE.Color(0xffc79a) },
+      uCool: { value: new THREE.Color(0x27303f) }, uFade: { value: 1 }, uLit: { value: 1 },
+    },
+  });
+  const city = new THREE.InstancedMesh(new THREE.BoxGeometry(1, 1, 1), cityMat, cityCount);
+  {
+    const seeds = new Float32Array(cityCount);
+    const m = new THREE.Matrix4(), q = new THREE.Quaternion(), pos = new THREE.Vector3(), scl = new THREE.Vector3();
+    let n = 0, i = 0, guard = 0;
+    const rnd = (() => { let x = 20261018; return () => (x = (x * 1103515245 + 12345) & 0x7fffffff) / 0x7fffffff; })();
+    while (n < cityCount && guard++ < cityCount * 40) {
+      // a loose street grid, with blocks left out so roads read through it
+      const gx = Math.round((rnd() - 0.5) * 22), gz = Math.round((rnd() - 0.5) * 22);
+      if (gx % 5 === 0 || gz % 7 === 0) continue;                 // avenues
+      const x = gx * 5.2 + (rnd() - 0.5) * 1.8, z = gz * 5.2 + (rnd() - 0.5) * 1.8;
+      const d = Math.hypot(x, z);
+      if (d < 19 || d > 96) continue;                             // keep the hero property clear
+      const near = 1 - Math.min(1, (d - 15) / 70);
+      const h = 3 + rnd() * rnd() * 34 * (0.45 + near * 0.75);
+      const w = 2.2 + rnd() * 3.4, dp = 2.2 + rnd() * 3.4;
+      pos.set(x, h / 2, z); scl.set(w, h, dp);
+      q.setFromAxisAngle(new THREE.Vector3(0, 1, 0), (rnd() - 0.5) * 0.25);
+      city.setMatrixAt(n, m.compose(pos, q, scl));
+      seeds[n] = rnd() * 100;
+      n++; i++;
+    }
+    city.count = n;
+    city.geometry.setAttribute('aSeed', new THREE.InstancedBufferAttribute(seeds, 1));
+    city.instanceMatrix.needsUpdate = true;
+  }
+  city.frustumCulled = false;
+  pin.add(city);
+
   // The payoff: the wireframe survey resolves into a real finished image of the property.
   // Soft-edged so it reads as a frame emerging, not a photo pasted on the scene.
   const PLATE_VS = `varying vec2 vUv; void main(){ vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position,1.0); }`;
@@ -266,6 +344,8 @@ export function createWorld({ canvas, drone, quality }) {
     const reveal = clamp01((T - 2.5) / 0.45) * (1 - esc);   // survey → finished image
     pin.visible = esc < 1 && pin.position.z > -120;
     plate.visible = reveal > 0.01 && plateMat.uniforms.uMap.value !== null;
+    cityMat.uniforms.uFade.value = 1 - esc;
+    cityMat.uniforms.uLit.value = 1 - (s.light || 0) * 0.85;
     plateMat.uniforms.uAmt.value = reveal;
     // a slow push so the finished frame reads as a moving shot, not a pasted still
     plate.scale.setScalar(1 + reveal * 0.055);
