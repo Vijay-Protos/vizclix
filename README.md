@@ -30,7 +30,19 @@ ES modules need HTTP; opening the file directly will not work.
     js/drone.js         procedural drone model
     vendor/three/       Three.js r186 runtime (MIT)
     assets/work/        project imagery
+    assets/video/       horizon footage (see Credits)
 
 ## Motion
 The page respects `prefers-reduced-motion` and falls back to a static layout.
 A visitor can override it from the hero prompt or the footer switch.
+
+## Credits
+
+`assets/video/skyline-dusk.mp4` — trimmed and re-encoded from "Drone Footage of
+Buildings at Night" by ArtHouse Studio, via Pexels. Free for commercial use
+under the Pexels licence; attribution is not required but is given here.
+https://www.pexels.com/video/drone-footage-of-buildings-at-night-8494852/
+
+Three.js r186 — MIT licence.
+
+Project imagery under `assets/work/` is Polycrayons studio work.
