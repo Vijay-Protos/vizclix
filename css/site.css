@@ -187,6 +187,11 @@ ol,ul{list-style:none}
 .light .body{color:#3D434C}
 .light .slash{color:#555B65}
 .light .idx{color:#555B65}
+/* Outlined type and step copy were drawn in bone for the dark ground: on daylight they
+   disappear entirely, or sit at 1.6:1. They take the ink side of the palette instead. */
+.light .bigword{-webkit-text-stroke-color:rgba(10,11,13,.18)}
+.light .steps .num{-webkit-text-stroke-color:rgba(10,11,13,.34)}
+.light .steps p{color:#3D434C}
 .three{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:0;border-top:1px solid var(--line)}
 .three article{padding:44px 40px 64px 0}
 .three article + article{border-left:1px solid var(--line);padding-left:40px}
