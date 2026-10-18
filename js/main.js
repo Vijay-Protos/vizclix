@@ -156,7 +156,7 @@ const intro = $('#intro'), flight = $('#flight');
 const chapters = $$('.chapter');
 const hudAlt = $('#hud-alt'), hudDist = $('#hud-dist'), railFill = $('#rail-fill'), shutter = $('#shutter');
 const canvas = $('#gl');
-const light = $('#perspective');
+const light = $('#perspective'), lightLast = $('#process');
 const progress = $('#progress-fill');
 let introTop = 0, introH = 1, flightTop = 1, flightH = 1, vh = innerHeight, flightEnd = 1;
 
@@ -206,10 +206,18 @@ function timelineT(y) {
 // The world only crosses to daylight once the daylight section genuinely owns the screen.
 // Tying it to how much of the viewport the section covers keeps the change off its neighbours,
 // whose copy is written for a dark ground.
+// Daylight runs from Perspective through Process. A single coverage figure cannot drive it:
+// coverage falls both when the block is arriving and when it is leaving, so the daylight drained
+// out from under copy that was still on screen. These sections are transparent in gl mode and
+// take their ground from the canvas, so the two edges are tracked apart — the block rises into
+// the daylight as it takes the screen, and only gives it back once it is genuinely leaving.
+// Dark neighbours paint their own ink ground while crossing, so the boundary stays a clean edge.
 function lightMix(y) {
-  const top = light.offsetTop, h = light.offsetHeight;
-  const covered = Math.max(0, Math.min(y + vh, top + h) - Math.max(y, top));
-  return smooth(clamp((covered / vh - 0.52) / 0.33));
+  const top = light.offsetTop;
+  const bottom = lightLast.offsetTop + lightLast.offsetHeight;
+  const entered = (y + vh - top) / vh;   // 0 as the block's top meets the foot of the screen
+  const left = (bottom - y) / vh;        // 0 as the block's bottom clears the top of the screen
+  return smooth(Math.min(clamp((entered - 0.3) / 0.38), clamp((left - 0.04) / 0.26)));
 }
 const windows = [[0.03, 0.34, false], [0.38, 0.68, false], [0.72, 1.0, true]];
 function chapterOpacity(f, [a, b, hold]) {
@@ -293,9 +301,10 @@ function loop(now) {
       if (!loop.drawn) { world.update({ T: 0, time: 1, dt: 0, light: 0 }); loop.drawn = true; }
     } else if (!document.hidden) {
       const mix = lightMix(y);
-      // while the ground is mid-crossover, dark sections hold their own background so their
-      // copy never sits on a half-lit canvas
-      root.classList.toggle('crossing', mix > 0.002 && mix < 0.998);
+      // Whenever the canvas is anything but full ink, dark sections hold their own background:
+      // at full daylight the next dark section is already on screen, and left transparent it
+      // shows bone through its own copy. Only true ink lets them go back to the canvas.
+      root.classList.toggle('crossing', mix > 0.002);
       world.update({ T, time, dt, light: mix });
       // adaptive quality: if the first second is slow, drop the pixel ratio once
       if (++frames > 20 && frames < 90) { slow += dt > 0.032 ? 1 : 0; }
