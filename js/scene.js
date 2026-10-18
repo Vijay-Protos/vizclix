@@ -164,6 +164,28 @@ export function createWorld({ canvas, drone, quality }) {
     new THREE.MeshBasicMaterial({ color: EMBER, transparent: true, opacity: 0.8, side: THREE.DoubleSide }));
   baseRing.rotation.x = -Math.PI / 2; baseRing.position.y = 0.01; pin.add(baseRing);
 
+  // Far horizon: real aerial footage sitting behind the generated district, so the approach
+  // happens over a living city. Loaded lazily and only where it is worth the bytes; without it
+  // the scene still reads, because the district carries the skyline on its own.
+  const backMat = new THREE.MeshBasicMaterial({ color: 0x79838f, transparent: true, opacity: 0, depthWrite: false, fog: false });
+  const backdrop = new THREE.Mesh(new THREE.PlaneGeometry(250, 141), backMat);
+  backdrop.position.set(0, 26, -74); backdrop.visible = false; backdrop.frustumCulled = false;
+  pin.add(backdrop);
+  let backReady = false;
+  if (quality.video) {
+    const vid = document.createElement('video');
+    vid.src = 'assets/video/skyline-dusk.mp4';
+    vid.muted = true; vid.loop = true; vid.playsInline = true; vid.preload = 'auto';
+    vid.setAttribute('muted', ''); vid.setAttribute('playsinline', '');
+    vid.addEventListener('canplay', () => {
+      const tex = new THREE.VideoTexture(vid);
+      tex.colorSpace = THREE.SRGBColorSpace;
+      backMat.map = tex; backMat.needsUpdate = true; backReady = true;
+      vid.play().catch(() => { backReady = false; });
+    }, { once: true });
+    vid.addEventListener('error', () => { backReady = false; });
+  }
+
   // A surrounding district, instanced so the whole city is one draw call. Generated rather than
   // downloaded: a stock low-poly kit would not sit in this light, and this way the massing,
   // density and window warmth are all art-directed.
@@ -201,6 +223,10 @@ export function createWorld({ canvas, drone, quality }) {
         float lit = step(1.0 - occupancy, r) * uLit;
         col += uWin * inWin * lit * (0.3 + 0.32 * hash(cell + 7.1));
       }
+      // buildings that would sweep through the lens are dropped, and the ones just beyond
+      // fade up out of the dark, so the approach never turns into a canyon of flat tiles
+      if (vDist < 15.0) discard;
+      col *= smoothstep(15.0, 34.0, vDist);
       float fog = smoothstep(16.0, 120.0, vDist);
       col = mix(col, uInk, fog);
       gl_FragColor = vec4(mix(uInk, col, uFade), 1.0);
@@ -225,8 +251,8 @@ export function createWorld({ canvas, drone, quality }) {
       if (gx % 5 === 0 || gz % 7 === 0) continue;                 // avenues
       const x = gx * 5.2 + (rnd() - 0.5) * 1.8, z = gz * 5.2 + (rnd() - 0.5) * 1.8;
       const d = Math.hypot(x, z);
-      if (d < 19 || d > 96) continue;                             // keep the hero property clear
-      const near = 1 - Math.min(1, (d - 15) / 70);
+      if (d < 19 || d > 74) continue;                             // keep the hero property clear
+      const near = 1 - Math.min(1, (d - 19) / 56);
       const h = 3 + rnd() * rnd() * 34 * (0.45 + near * 0.75);
       const w = 2.2 + rnd() * 3.4, dp = 2.2 + rnd() * 3.4;
       pos.set(x, h / 2, z); scl.set(w, h, dp);
@@ -344,6 +370,10 @@ export function createWorld({ canvas, drone, quality }) {
     const reveal = clamp01((T - 2.5) / 0.45) * (1 - esc);   // survey → finished image
     pin.visible = esc < 1 && pin.position.z > -120;
     plate.visible = reveal > 0.01 && plateMat.uniforms.uMap.value !== null;
+    // the horizon rises as we approach, then gives way to the finished frame
+    const horizon = clamp01((T - 1.3) / 0.8) * (1 - reveal) * (1 - esc);
+    backdrop.visible = backReady && horizon > 0.01;
+    backMat.opacity = horizon * 0.95;
     cityMat.uniforms.uFade.value = 1 - esc;
     cityMat.uniforms.uLit.value = 1 - (s.light || 0) * 0.85;
     plateMat.uniforms.uAmt.value = reveal;

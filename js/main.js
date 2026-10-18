@@ -261,7 +261,10 @@ async function boot3D() {
     steps.engine = true;
     drone = buildDrone(THREE, addons);
     steps.model = true;
-    const quality = small ? { dpr: 1.5, seg: 110, dust: 220, aa: false, city: 190 } : { dpr: 2, seg: 220, dust: 520, aa: true, city: 420 };
+    const saveData = (navigator.connection && (navigator.connection.saveData || /2g/.test(navigator.connection.effectiveType || ''))) || false;
+    const quality = small
+      ? { dpr: 1.5, seg: 110, dust: 220, aa: false, city: 190, video: false }
+      : { dpr: 2, seg: 220, dust: 520, aa: true, city: 420, video: !saveData };
     world = createWorld({ canvas, drone, quality });
     world.update({ T: 0, time: 0, dt: 0, light: 0 });
     steps.frame = true;
