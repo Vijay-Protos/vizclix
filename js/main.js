@@ -258,10 +258,8 @@ async function boot3D() {
     if (!(probe.getContext('webgl2') || probe.getContext('webgl'))) throw new Error('no webgl');
     const THREE = await import('three');
     const [{ buildDrone }, { createWorld }] = await Promise.all([import('./drone.js'), import('./scene.js')]);
-    let addons = {};
-    try { const m = await import('three/addons/geometries/RoundedBoxGeometry.js'); addons = { RoundedBoxGeometry: m.RoundedBoxGeometry }; } catch (_) { /* optional */ }
     steps.engine = true;
-    drone = buildDrone(THREE, addons);
+    drone = buildDrone(THREE);
     steps.model = true;
     const saveData = (navigator.connection && (navigator.connection.saveData || /2g/.test(navigator.connection.effectiveType || ''))) || false;
     const quality = small
