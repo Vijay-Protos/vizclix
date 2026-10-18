@@ -225,8 +225,8 @@ export function createWorld({ canvas, drone, quality }) {
       }
       // buildings that would sweep through the lens are dropped, and the ones just beyond
       // fade up out of the dark, so the approach never turns into a canyon of flat tiles
-      if (vDist < 15.0) discard;
-      col *= smoothstep(15.0, 34.0, vDist);
+      if (vDist < 19.0) discard;
+      col *= smoothstep(19.0, 42.0, vDist);
       float fog = smoothstep(16.0, 120.0, vDist);
       col = mix(col, uInk, fog);
       gl_FragColor = vec4(mix(uInk, col, uFade), 1.0);
@@ -289,6 +289,20 @@ export function createWorld({ canvas, drone, quality }) {
   });
   const plate = new THREE.Mesh(new THREE.PlaneGeometry(7.4, 9.25), plateMat);
   plate.position.set(1.9, 1.5, 1.2); plate.visible = false; pin.add(plate);
+  // corner marks, so the flatness reads as a deliberately framed shot rather than a pasted card
+  {
+    const W = 3.7, H = 4.62, a = 0.72;
+    const pts = [];
+    for (const [sx, sy] of [[-1, 1], [1, 1], [-1, -1], [1, -1]]) {
+      pts.push(sx * W, sy * H, 0, sx * W - sx * a, sy * H, 0);
+      pts.push(sx * W, sy * H, 0, sx * W, sy * H - sy * a, 0);
+    }
+    const g = new THREE.BufferGeometry();
+    g.setAttribute('position', new THREE.Float32BufferAttribute(pts, 3));
+    const brackets = new THREE.LineSegments(g, new THREE.LineBasicMaterial({ color: BONE, transparent: true, opacity: 0 }));
+    plate.add(brackets);
+    plate.userData.brackets = brackets;
+  }
   new THREE.TextureLoader().load(
     'assets/work/mahavir-springs-thane.jpg',
     (tex) => { tex.colorSpace = THREE.SRGBColorSpace; plateMat.uniforms.uMap.value = tex; },
@@ -330,6 +344,7 @@ export function createWorld({ canvas, drone, quality }) {
   scene.add(drone.group);
 
   const look = new THREE.Vector3();
+  const faceTmp = new THREE.Vector3();
   let aspect = 1;
 
   function resize() {
@@ -374,15 +389,22 @@ export function createWorld({ canvas, drone, quality }) {
     const horizon = clamp01((T - 1.3) / 0.8) * (1 - reveal) * (1 - esc);
     backdrop.visible = backReady && horizon > 0.01;
     backMat.opacity = horizon * 0.95;
-    cityMat.uniforms.uFade.value = 1 - esc;
+    // the district rises into view as the property nears, instead of crowding the opening
+    cityMat.uniforms.uFade.value = (1 - esc) * clamp01((T - 1.65) / 0.7);
     cityMat.uniforms.uLit.value = 1 - (s.light || 0) * 0.85;
     plateMat.uniforms.uAmt.value = reveal;
     // a slow push so the finished frame reads as a moving shot, not a pasted still
     plate.scale.setScalar(1 + reveal * 0.055);
     plate.position.y = 1.5 + reveal * 0.28;
-    fillMat.opacity = 1 - reveal * 0.85;
-    edgeMat.opacity = 0.6 * (1 - esc) * (1 - reveal * 0.45);
-    edgeHot.opacity = (1 - esc) * (1 - reveal * 0.25);
+    // face the viewer, staying upright, so we never catch it edge-on
+    plate.getWorldPosition(faceTmp);
+    faceTmp.subVectors(camera.position, faceTmp);
+    plate.rotation.y = Math.atan2(faceTmp.x, faceTmp.z);
+    plate.userData.brackets.material.opacity = reveal * 0.5;
+    // the survey scaffolding steps back once the finished frame has arrived
+    fillMat.opacity = 1 - reveal;
+    edgeMat.opacity = 0.6 * (1 - esc) * (1 - reveal);
+    edgeHot.opacity = (1 - esc) * (1 - reveal * 0.75);
     beam.material.opacity = 0.55 * (1 - esc) * (1 - reveal);
     baseRing.material.opacity = 0.8 * (1 - esc);
     dust.position.z = scrollZ % 70;
