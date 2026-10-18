@@ -261,6 +261,9 @@ details.q .a{padding:0 48px 30px 0;color:#B4B8BF;line-height:1.7;max-width:60ch;
 .foot nav a:hover{border-bottom-color:var(--ember)}
 .contact-ph{color:var(--altitude);line-height:1.8}
 
+/* while the world crosses to daylight, every dark section keeps its own ground */
+.gl.crossing .sec:not(.light),.gl.crossing .foot{background:var(--ink)}
+
 /* ---------- fine detailing ---------- */
 .progress{position:fixed;left:0;top:0;height:1px;width:100%;z-index:90;background:transparent;pointer-events:none}
 .progress i{display:block;height:100%;width:0;background:linear-gradient(90deg,rgba(255,107,53,.35),var(--ember));transform-origin:left}

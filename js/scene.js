@@ -200,7 +200,7 @@ export function createWorld({ canvas, drone, quality }) {
       gl_Position = projectionMatrix * viewMatrix * wp;
     }`;
   const CITY_FS = `
-    uniform vec3 uInk; uniform vec3 uWin; uniform vec3 uCool; uniform float uFade; uniform float uLit;
+    uniform vec3 uInk; uniform vec3 uWin; uniform vec3 uCool; uniform float uFade; uniform float uLit; uniform float uNear;
     varying vec3 vPos; varying vec3 vScale; varying float vSeed; varying vec3 vN; varying float vDist;
     float hash(vec2 p){ p = fract(p * vec2(443.897, 441.423)); p += dot(p, p + 19.19); return fract(p.x * p.y); }
     void main(){
@@ -225,8 +225,8 @@ export function createWorld({ canvas, drone, quality }) {
       }
       // buildings that would sweep through the lens are dropped, and the ones just beyond
       // fade up out of the dark, so the approach never turns into a canyon of flat tiles
-      if (vDist < 19.0) discard;
-      col *= smoothstep(19.0, 42.0, vDist);
+      if (vDist < uNear) discard;
+      col *= smoothstep(uNear, uNear + 23.0, vDist);
       float fog = smoothstep(16.0, 120.0, vDist);
       col = mix(col, uInk, fog);
       gl_FragColor = vec4(mix(uInk, col, uFade), 1.0);
@@ -236,7 +236,7 @@ export function createWorld({ canvas, drone, quality }) {
     vertexShader: CITY_VS, fragmentShader: CITY_FS,
     uniforms: {
       uInk: { value: new THREE.Color(0x0d1119) }, uWin: { value: new THREE.Color(0xffc79a) },
-      uCool: { value: new THREE.Color(0x27303f) }, uFade: { value: 1 }, uLit: { value: 1 },
+      uCool: { value: new THREE.Color(0x27303f) }, uFade: { value: 1 }, uLit: { value: 1 }, uNear: { value: 19 },
     },
   });
   const city = new THREE.InstancedMesh(new THREE.BoxGeometry(1, 1, 1), cityMat, cityCount);
@@ -268,47 +268,30 @@ export function createWorld({ canvas, drone, quality }) {
   city.frustumCulled = false;
   pin.add(city);
 
-  // The payoff: the wireframe survey resolves into a real finished image of the property.
-  // Soft-edged so it reads as a frame emerging, not a photo pasted on the scene.
-  const PLATE_VS = `varying vec2 vUv; void main(){ vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position,1.0); }`;
-  const PLATE_FS = `
-    uniform sampler2D uMap; uniform float uAmt; uniform vec3 uInk; varying vec2 vUv;
-    void main(){
-      vec2 d = abs(vUv - 0.5) * 2.0;
-      float edge = (1.0 - smoothstep(0.55, 1.0, d.x)) * (1.0 - smoothstep(0.6, 1.0, d.y));
-      // the image develops from the centre outwards as the drone arrives
-      float develop = smoothstep(0.0, 1.0, uAmt * 1.9 - length(vUv - 0.5) * 1.1);
-      vec3 c = texture2D(uMap, vUv).rgb;
-      float a = edge * develop;
-      if (a < 0.004) discard;
-      gl_FragColor = vec4(mix(uInk, c, clamp(develop + 0.15, 0.0, 1.0)), a);
-    }`;
-  const plateMat = new THREE.ShaderMaterial({
-    vertexShader: PLATE_VS, fragmentShader: PLATE_FS, transparent: true, depthWrite: false,
-    uniforms: { uMap: { value: null }, uAmt: { value: 0 }, uInk: { value: new THREE.Color(INK) } },
+  // The payoff: the surveyed massing becomes a finished, lit building. Built in the same world
+  // as everything else rather than a photograph dropped into it, so nothing collides.
+  const heroMat = new THREE.ShaderMaterial({
+    vertexShader: CITY_VS, fragmentShader: CITY_FS, transparent: true,
+    uniforms: {
+      uInk: { value: new THREE.Color(0x151b24) }, uWin: { value: new THREE.Color(0xffd0a4) },
+      uCool: { value: new THREE.Color(0x36425a) }, uFade: { value: 0 }, uLit: { value: 1 }, uNear: { value: 0 },
+    },
   });
-  const plate = new THREE.Mesh(new THREE.PlaneGeometry(7.4, 9.25), plateMat);
-  plate.position.set(1.9, 1.5, 1.2); plate.visible = false; pin.add(plate);
-  // corner marks, so the flatness reads as a deliberately framed shot rather than a pasted card
+  const heroMesh = new THREE.InstancedMesh(new THREE.BoxGeometry(1, 1, 1), heroMat, boxes.length);
   {
-    const W = 3.7, H = 4.62, a = 0.72;
-    const pts = [];
-    for (const [sx, sy] of [[-1, 1], [1, 1], [-1, -1], [1, -1]]) {
-      pts.push(sx * W, sy * H, 0, sx * W - sx * a, sy * H, 0);
-      pts.push(sx * W, sy * H, 0, sx * W, sy * H - sy * a, 0);
-    }
-    const g = new THREE.BufferGeometry();
-    g.setAttribute('position', new THREE.Float32BufferAttribute(pts, 3));
-    const brackets = new THREE.LineSegments(g, new THREE.LineBasicMaterial({ color: BONE, transparent: true, opacity: 0 }));
-    plate.add(brackets);
-    plate.userData.brackets = brackets;
+    const m = new THREE.Matrix4(), q = new THREE.Quaternion(), pv = new THREE.Vector3(), sv = new THREE.Vector3();
+    const seeds = new Float32Array(boxes.length);
+    boxes.forEach(([w, h, d, x, z], i) => {
+      pv.set(x, h / 2, z); sv.set(w, h, d);
+      heroMesh.setMatrixAt(i, m.compose(pv, q, sv));
+      seeds[i] = i * 13.7 + 2.3;
+    });
+    heroMesh.geometry.setAttribute('aSeed', new THREE.InstancedBufferAttribute(seeds, 1));
+    heroMesh.instanceMatrix.needsUpdate = true;
   }
-  new THREE.TextureLoader().load(
-    'assets/work/mahavir-springs-thane.jpg',
-    (tex) => { tex.colorSpace = THREE.SRGBColorSpace; plateMat.uniforms.uMap.value = tex; },
-    undefined,
-    () => { /* no plate if the image cannot load; the wireframe reveal still reads */ },
-  );
+  heroMesh.frustumCulled = false;
+  heroMesh.visible = false;
+  pin.add(heroMesh);
 
   // scanner under the drone
   const scan = new THREE.Group(); scan.position.y = -5.97; scene.add(scan);
@@ -344,7 +327,6 @@ export function createWorld({ canvas, drone, quality }) {
   scene.add(drone.group);
 
   const look = new THREE.Vector3();
-  const faceTmp = new THREE.Vector3();
   let aspect = 1;
 
   function resize() {
@@ -384,7 +366,8 @@ export function createWorld({ canvas, drone, quality }) {
     pin.position.set(0, -6, pinT.y + scrollZ);
     const reveal = clamp01((T - 2.5) / 0.45) * (1 - esc);   // survey → finished image
     pin.visible = esc < 1 && pin.position.z > -120;
-    plate.visible = reveal > 0.01 && plateMat.uniforms.uMap.value !== null;
+    heroMesh.visible = reveal > 0.01;
+    heroMat.uniforms.uFade.value = reveal * (1 - esc);
     // the horizon rises as we approach, then gives way to the finished frame
     const horizon = clamp01((T - 1.3) / 0.8) * (1 - reveal) * (1 - esc);
     backdrop.visible = backReady && horizon > 0.01;
@@ -392,15 +375,6 @@ export function createWorld({ canvas, drone, quality }) {
     // the district rises into view as the property nears, instead of crowding the opening
     cityMat.uniforms.uFade.value = (1 - esc) * clamp01((T - 1.65) / 0.7);
     cityMat.uniforms.uLit.value = 1 - (s.light || 0) * 0.85;
-    plateMat.uniforms.uAmt.value = reveal;
-    // a slow push so the finished frame reads as a moving shot, not a pasted still
-    plate.scale.setScalar(1 + reveal * 0.055);
-    plate.position.y = 1.5 + reveal * 0.28;
-    // face the viewer, staying upright, so we never catch it edge-on
-    plate.getWorldPosition(faceTmp);
-    faceTmp.subVectors(camera.position, faceTmp);
-    plate.rotation.y = Math.atan2(faceTmp.x, faceTmp.z);
-    plate.userData.brackets.material.opacity = reveal * 0.5;
     // the survey scaffolding steps back once the finished frame has arrived
     fillMat.opacity = 1 - reveal;
     edgeMat.opacity = 0.6 * (1 - esc) * (1 - reveal);

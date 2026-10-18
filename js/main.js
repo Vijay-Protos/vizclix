@@ -203,11 +203,13 @@ function timelineT(y) {
   return stations[stations.length - 1][1];
 }
 
-// how far the daylight section fills the screen — drives the world's background crossover
+// The world only crosses to daylight once the daylight section genuinely owns the screen.
+// Tying it to how much of the viewport the section covers keeps the change off its neighbours,
+// whose copy is written for a dark ground.
 function lightMix(y) {
   const top = light.offsetTop, h = light.offsetHeight;
-  const fade = Math.min(260, h * 0.3);
-  return clamp((y + vh - top) / fade) * clamp((top + h - y) / fade);
+  const covered = Math.max(0, Math.min(y + vh, top + h) - Math.max(y, top));
+  return smooth(clamp((covered / vh - 0.52) / 0.33));
 }
 const windows = [[0.03, 0.34, false], [0.38, 0.68, false], [0.72, 1.0, true]];
 function chapterOpacity(f, [a, b, hold]) {
@@ -292,7 +294,11 @@ function loop(now) {
       canvas.style.opacity = String(clamp(1 - y / (vh * 0.9)));
       if (!loop.drawn) { world.update({ T: 0, time: 1, dt: 0, light: 0 }); loop.drawn = true; }
     } else if (!document.hidden) {
-      world.update({ T, time, dt, light: lightMix(y) });
+      const mix = lightMix(y);
+      // while the ground is mid-crossover, dark sections hold their own background so their
+      // copy never sits on a half-lit canvas
+      root.classList.toggle('crossing', mix > 0.002 && mix < 0.998);
+      world.update({ T, time, dt, light: mix });
       // adaptive quality: if the first second is slow, drop the pixel ratio once
       if (++frames > 20 && frames < 90) { slow += dt > 0.032 ? 1 : 0; }
       if (frames === 90 && slow > 40 && !dprDropped) { dprDropped = true; world.renderer.setPixelRatio(1); world.resize(); }
