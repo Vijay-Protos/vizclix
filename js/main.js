@@ -157,6 +157,7 @@ const chapters = $$('.chapter');
 const hudAlt = $('#hud-alt'), hudDist = $('#hud-dist'), railFill = $('#rail-fill'), shutter = $('#shutter');
 const canvas = $('#gl');
 const light = $('#perspective');
+const progress = $('#progress-fill');
 let introTop = 0, introH = 1, flightTop = 1, flightH = 1, vh = innerHeight, flightEnd = 1;
 
 // Scroll → timeline. Stations below T=3 are the flight; above it each section owns a stretch of
@@ -171,8 +172,10 @@ function layout() {
   const raw = [
     [0, 0], [introTop, 1], [flightTop, 2], [flightEnd - vh, 3],
     [mid($('#work'), 0), 3.4], [mid($('#work')), 4],
-    [mid($('#services'), 0), 4.5], [mid($('#services')), 5], [mid($('#services'), 1), 5.6],
-    [mid(light, 0.35), 6], [mid(light, 1), 6.6],
+    [mid($('#study'), 0.5), 4.3],
+    [mid($('#services'), 0), 4.6], [mid($('#services')), 5], [mid($('#services'), 1), 5.5],
+    [mid($('#grammar'), 0.5), 5.8],
+    [mid(light, 0.35), 6.1], [mid(light, 1), 6.6],
     [mid($('#process'), 0.25), 7], [mid($('#process'), 0.9), 7.4],
     [mid($('#partner'), 0.5), 7.8],
     [mid($('#proof'), 0.5), 8.2], [mid($('#faq'), 0.5), 8.6],
@@ -216,6 +219,7 @@ function chapterOpacity(f, [a, b, hold]) {
 
 function updateDom(T, y) {
   const f = clamp(T - 2);
+  if (progress) progress.style.transform = 'scaleX(' + clamp(y / Math.max(1, document.documentElement.scrollHeight - vh)).toFixed(4) + ')';
   // header solid once past the flight
   bar.classList.toggle('solid', y > flightEnd - vh * 0.6);
   // word-by-word statement
