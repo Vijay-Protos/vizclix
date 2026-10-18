@@ -24,10 +24,12 @@ const K = [
   // reader, y=PI faces away, y=PI/2 points screen-right, y=3PI/2 points screen-left.
   { T: 3.4, cam: [-2.6, 0.5, 9.6], look: [0, -0.7, 0], pos: [1.4, 0.6, 0],  rot: [0.05, 3.95, 0.02],  fov: 35, sc: 0.78, thr: 0.8,  gim: -0.7 },
   { T: 4.0, cam: [0, 0, 10], look: [0, 0, 0], pos: [4.7, 2.45, 0],   rot: [0.09, 4.50, -0.04], fov: 35, sc: 0.50, thr: 0.7,  gim: -0.65 }, // Work: turned in, looking down over the grid
-  { T: 4.5, cam: [0, 0, 10], look: [0, 0, 0], pos: [4.8, 2.35, 0],   rot: [0.06, 4.75, 0.03],  fov: 35, sc: 0.46, thr: 0.65, gim: -0.55 },
+  { T: 4.3, cam: [0, 0, 10], look: [0, 0, 0], pos: [6.1, 1.4, 0],    rot: [0.06, 4.65, 0.02],  fov: 35, sc: 0.30, thr: 0.6,  gim: -0.4 },  // Case study: holds the margin
+  { T: 4.6, cam: [0, 0, 10], look: [0, 0, 0], pos: [4.8, 2.35, 0],   rot: [0.06, 4.75, 0.03],  fov: 35, sc: 0.46, thr: 0.65, gim: -0.55 },
   { T: 5.0, cam: [0, 0, 10], look: [0, 0, 0], pos: [4.85, 0.7, 0],   rot: [0.05, 4.95, 0.04],  fov: 35, sc: 0.44, thr: 0.7,  gim: -0.4 },  // Services: nose to the list, descending it
-  { T: 5.6, cam: [0, 0, 10], look: [0, 0, 0], pos: [4.7, -2.25, .4], rot: [0.08, 5.40, -0.03], fov: 35, sc: 0.50, thr: 0.75, gim: -0.3 },
-  { T: 6.0, cam: [0, .3, 10], look: [0, .2, 0], pos: [5.4, -1.3, 1.0], rot: [0.16, 6.00, 0.04], fov: 35, sc: 0.50, thr: 0.8,  gim: -0.25 }, // Perspective: a glimpse at the edge
+  { T: 5.5, cam: [0, 0, 10], look: [0, 0, 0], pos: [4.7, -2.25, .4], rot: [0.08, 5.40, -0.03], fov: 35, sc: 0.50, thr: 0.75, gim: -0.3 },
+  { T: 5.8, cam: [0, 0, 10], look: [0, 0, 0], pos: [5.5, 1.0, -0.3],  rot: [0.05, 5.70, 0.03],  fov: 35, sc: 0.32, thr: 0.65, gim: -0.35 }, // The moves: stands off
+  { T: 6.1, cam: [0, .3, 10], look: [0, .2, 0], pos: [5.4, -1.3, 1.0], rot: [0.16, 6.00, 0.04], fov: 35, sc: 0.50, thr: 0.8,  gim: -0.25 }, // Perspective: a glimpse at the edge
   { T: 6.6, cam: [0, 0, 10], look: [0, 0, 0], pos: [1.7, -2.0, 0.8], rot: [0.17, 6.85, -0.02], fov: 35, sc: 0.88, thr: 0.75, gim: -0.3 },  // daylight reveal, turned to face the reader
   { T: 7.0, cam: [0, 0, 10], look: [0, 0, 0], pos: [-4.7, -2.5, 0],  rot: [0.04, 7.854, 0.06], fov: 35, sc: 0.42, thr: 0.9,  gim: -0.2 },  // Process: nose screen-right, a playhead
   { T: 7.4, cam: [0, 0, 10], look: [0, 0, 0], pos: [4.6, -2.5, 0],   rot: [0.04, 7.854, -0.06], fov: 35, sc: 0.42, thr: 0.9, gim: -0.2 },  // ...holding that heading as it crosses
@@ -265,6 +267,9 @@ export function createWorld({ canvas, drone, quality }) {
     pin.visible = esc < 1 && pin.position.z > -120;
     plate.visible = reveal > 0.01 && plateMat.uniforms.uMap.value !== null;
     plateMat.uniforms.uAmt.value = reveal;
+    // a slow push so the finished frame reads as a moving shot, not a pasted still
+    plate.scale.setScalar(1 + reveal * 0.055);
+    plate.position.y = 1.5 + reveal * 0.28;
     fillMat.opacity = 1 - reveal * 0.85;
     edgeMat.opacity = 0.6 * (1 - esc) * (1 - reveal * 0.45);
     edgeHot.opacity = (1 - esc) * (1 - reveal * 0.25);
