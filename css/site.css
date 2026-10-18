@@ -261,6 +261,28 @@ details.q .a{padding:0 48px 30px 0;color:#B4B8BF;line-height:1.7;max-width:60ch;
 .foot nav a:hover{border-bottom-color:var(--ember)}
 .contact-ph{color:var(--altitude);line-height:1.8}
 
+/* ---------- partner network ---------- */
+.deal{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:0;border-top:1px solid var(--line);border-bottom:1px solid var(--line)}
+.deal article{padding:40px 48px 48px 0}
+.deal article + article{border-left:1px solid var(--line);padding-left:48px}
+.deal .slash{display:block;margin-bottom:26px}
+.deal ul{display:grid;gap:18px}
+.deal li{position:relative;padding-left:30px;color:#C3C6CB;font-size:clamp(16px,1.3vw,19px);line-height:1.5}
+.deal li::before{content:'';position:absolute;left:0;top:.62em;width:14px;height:1px;background:var(--ember)}
+.coverage{margin-top:clamp(44px,5vw,80px)}
+.coverage .slash{display:block;margin-bottom:26px}
+.cities{display:flex;flex-wrap:wrap;gap:12px}
+.cities li{display:inline-flex;align-items:center;gap:10px;min-height:46px;padding:0 20px;border:1px solid var(--line);border-radius:2px;font-size:16px;color:#C3C6CB;transition:border-color .3s var(--ease),color .3s var(--ease)}
+.cities li:hover{border-color:var(--ember);color:var(--bone)}
+.coverage .more{padding-left:0;margin-top:clamp(36px,4vw,56px)}
+
+/* contact: two audiences, two paths */
+.paths{border:0;padding:0;margin:0 0 34px;display:flex;flex-wrap:wrap;gap:12px;align-items:center}
+.paths .lab{width:100%;float:none;padding:0}
+.chip.path input{cursor:pointer}
+.chip.path input:checked + span{border-color:var(--ember);background:rgba(255,107,53,.12);color:var(--bone)}
+.field[hidden]{display:none}
+
 /* ---------- the drone escorts the page: sections let the fixed canvas through ----------
    Only when WebGL is live and motion is on (html.gl); otherwise the sections keep their own ground. */
 .gl .sec,.gl .foot{background:transparent}
@@ -277,7 +299,14 @@ details.q .a{padding:0 48px 30px 0;color:#B4B8BF;line-height:1.7;max-width:60ch;
   .slots{grid-template-columns:repeat(2,minmax(0,1fr))}
   .bar-mid{display:none}
 }
+@media (max-width:1100px){
+  .deal article{padding-right:32px}.deal article + article{padding-left:32px}
+}
 @media (max-width:860px){
+  .deal{grid-template-columns:minmax(0,1fr)}
+  .deal article{padding:32px 0}
+  .deal article + article{border-left:0;border-top:1px solid var(--line);padding-left:0}
+
   :root{--bar:64px}
   .bar-clock,.brand-sub,.quote-link,.brand .sep{display:none}
   .hero-grid{grid-template-columns:minmax(0,1fr)}

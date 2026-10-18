@@ -107,6 +107,33 @@ $$('[data-motion-toggle]').forEach((b) => {
   });
 });
 
+/* ---------- contact: two audiences ---------- */
+const pathInputs = $$('input[name="path"]');
+const sendLabel = $('[data-send-label]');
+// remember which fields were genuinely required before anything is toggled
+$$('[data-for] input,[data-for] select,[data-for] textarea').forEach((f) => {
+  f.dataset.req = f.hasAttribute('required') ? '1' : '0';
+});
+function applyPath() {
+  const picked = (pathInputs.find((i) => i.checked) || {}).value || 'shoot';
+  $$('[data-for]').forEach((el) => {
+    const on = el.dataset.for === picked;
+    el.hidden = !on;
+    $$('input,select,textarea', el).forEach((f) => {
+      f.disabled = !on;
+      if (on && f.dataset.req === '1') f.setAttribute('required', '');
+      else f.removeAttribute('required');
+    });
+  });
+  if (sendLabel) sendLabel.textContent = picked === 'operator' ? 'Apply to the Network' : 'Send Enquiry';
+}
+pathInputs.forEach((i) => i.addEventListener('change', applyPath));
+$$('[data-pick-partner]').forEach((a) => a.addEventListener('click', () => {
+  const op = pathInputs.find((i) => i.value === 'operator');
+  if (op) { op.checked = true; applyPath(); }
+}));
+applyPath();
+
 /* ---------- anchors ---------- */
 document.addEventListener('click', (e) => {
   const a = e.target.closest('a[href^="#"]');
@@ -142,10 +169,11 @@ function layout() {
     [mid($('#work'), 0), 3.4], [mid($('#work')), 4],
     [mid($('#services'), 0), 4.5], [mid($('#services')), 5], [mid($('#services'), 1), 5.6],
     [mid(light, 0.35), 6], [mid(light, 1), 6.6],
-    [mid($('#process'), 0.4), 7],
-    [mid($('#proof'), 0.5), 7.5], [mid($('#faq'), 0.5), 8],
-    [mid($('#contact'), 0.1), 8.5], [mid($('#contact'), 0.75), 9],
-    [document.documentElement.scrollHeight - vh, 9.4],
+    [mid($('#process'), 0.25), 7], [mid($('#process'), 0.9), 7.4],
+    [mid($('#partner'), 0.5), 7.8],
+    [mid($('#proof'), 0.5), 8.2], [mid($('#faq'), 0.5), 8.6],
+    [mid($('#contact'), 0.1), 9], [mid($('#contact'), 0.75), 9.4],
+    [document.documentElement.scrollHeight - vh, 9.7],
   ];
   stations = [];
   for (const [y, T] of raw) {                       // keep y strictly increasing
