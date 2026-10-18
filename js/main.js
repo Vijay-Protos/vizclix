@@ -282,7 +282,7 @@ let cur = scrollY, last = performance.now(), time = 0, frames = 0, slow = 0, dpr
 function loop(now) {
   const dt = Math.min(0.05, (now - last) / 1000); last = now; time += dt;
   const y = scrollY;
-  cur += (y - cur) * (reduce ? 1 : 1 - Math.exp(-dt * 7));
+  cur += (y - cur) * (reduce ? 1 : 1 - Math.exp(-dt * 5.2));
   if (Math.abs(y - cur) < 0.1) cur = y;
   const T = timelineT(cur);
   updateDom(T, cur);
