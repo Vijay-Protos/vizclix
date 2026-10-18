@@ -40,6 +40,9 @@ const K = [
   { T: 9.4, cam: [0, -.4, 10], look: [0, -.5, 0], pos: [-4.1, -1.9, .4],  rot: [0.0, 11.6, 0.0], fov: 35, sc: 0.6, thr: 0.22, gim: -0.1 }, // touchdown
   { T: 9.7, cam: [0, -.4, 10], look: [0, -.5, 0], pos: [-4.1, -2.12, .4], rot: [0.0, 12.0, 0.0], fov: 35, sc: 0.6, thr: 0.0,  gim: 0.0 },  // landed, facing you
 ];
+// Half the drone's span in world units at scale 1, rotor tip to rotor tip. Used to keep a
+// station inside the frame by the drone's own width rather than by its centre point.
+const DRONE_HALF_W = 1.35;
 const N = 16;
 const FLAT = K.map((k) => [...k.cam, ...k.look, ...k.pos, ...k.rot, k.fov, k.sc, k.thr, k.gim]);
 
@@ -270,11 +273,13 @@ export function createWorld({ canvas, drone, quality }) {
 
   // The payoff: the surveyed massing becomes a finished, lit building. Built in the same world
   // as everything else rather than a photograph dropped into it, so nothing collides.
+  // uNear sits behind the camera: the district's near-distance dimming exists to hide towers
+  // sweeping past the lens, and the property is the one building meant to be lit when close.
   const heroMat = new THREE.ShaderMaterial({
-    vertexShader: CITY_VS, fragmentShader: CITY_FS, transparent: true,
+    vertexShader: CITY_VS, fragmentShader: CITY_FS,
     uniforms: {
       uInk: { value: new THREE.Color(0x151b24) }, uWin: { value: new THREE.Color(0xffd0a4) },
-      uCool: { value: new THREE.Color(0x36425a) }, uFade: { value: 0 }, uLit: { value: 1 }, uNear: { value: 0 },
+      uCool: { value: new THREE.Color(0x36425a) }, uFade: { value: 0 }, uLit: { value: 1 }, uNear: { value: -40 },
     },
   });
   const heroMesh = new THREE.InstancedMesh(new THREE.BoxGeometry(1, 1, 1), heroMat, boxes.length);
@@ -411,13 +416,20 @@ export function createWorld({ canvas, drone, quality }) {
     const bob = lerp(0.06, 0.02, land);
     const speed = T > 2 && T < 3.2 ? 1 - f * 0.4 : 0.15;
     let px = v[6], py = v[7], pscale = 1;
+    const halfW = Math.tan((camera.fov * Math.PI) / 360) * Math.max(1, v[2] - v[8]) * aspect;
     if (portrait && esc > 0) {
-      const halfW = Math.tan((camera.fov * Math.PI) / 360) * Math.max(1, v[2] - v[8]) * aspect;
       const side = v[6] < 0 ? -1 : 1;
       const beat = phoneBeat(T);
       px = lerp(v[6], lerp(side * halfW * 2.4, side * halfW * 0.58, beat), esc);
       py = lerp(v[7], v[7] * 0.7, esc);
       pscale = lerp(1, 0.74, esc);
+    } else if (esc > 0) {
+      // A window taller than the frame the stations were drawn against has less world width at
+      // the drone's depth, so an authored margin position falls outside it and the drone leaves
+      // the shot. Hold it at the edge instead of pulling it in over the copy: the station wants
+      // the margin, and only the part that would overhang the frame is given up.
+      const edge = Math.max(1.2, halfW - (DRONE_HALF_W * v[13] + 0.22));
+      px = lerp(v[6], Math.sign(v[6]) * Math.min(Math.abs(v[6]), edge), esc);
     }
     g.position.set(px, py + Math.sin(t * 1.3) * bob, v[8]);
     g.rotation.set(v[9] + Math.sin(t * 0.7) * 0.015 + speed * 0.05, v[10], v[11] + Math.sin(t * 0.9) * 0.025 * (1 - land));
