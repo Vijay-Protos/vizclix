@@ -1,0 +1,341 @@
+<!doctype html>
+<html lang="en" class="no-js">
+<head>
+<meta charset="utf-8">
+<title>VizClix — Aerial Photography &amp; Film for Real Estate</title>
+<meta name="description" content="VizClix films and photographs developments, homes and land from the air, so a buyer understands the place before they ever visit.">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#0A0B0D">
+<meta name="robots" content="noindex, nofollow">
+<link rel="canonical" href="https://vizclix.com/">
+<meta property="og:title" content="VizClix — Seeing Property from a Higher Perspective.">
+<meta property="og:description" content="Aerial photography and film for real estate.">
+<meta property="og:type" content="website">
+<meta property="og:url" content="https://vizclix.com/">
+<script>document.documentElement.className='js';</script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@200..700&family=Geist+Mono:wght@400;500&display=swap">
+<link rel="stylesheet" href="css/site.css">
+<script type="importmap">
+{ "imports": { "three": "./vendor/three/three.module.js", "three/addons/": "./vendor/three/addons/" } }
+</script>
+</head>
+<body>
+
+<!-- 3D scene: one fixed canvas behind the hero, intro and flight -->
+<canvas id="gl" aria-hidden="true"></canvas>
+<div class="shutter" id="shutter" aria-hidden="true"></div>
+
+<!-- loader: counts real milestones (fonts, 3D engine, model, first frame) -->
+<div class="loader" id="loader" role="status" aria-live="polite">
+  <div class="loader-row"><span class="mono">VizClix</span><span class="mono" id="loader-n">000</span></div>
+  <div class="loader-bar"><i id="loader-bar"></i></div>
+</div>
+
+<a class="skip-link" href="#work">Skip the flight</a>
+
+<!-- header: metadata bar -->
+<header class="bar" id="bar">
+  <a href="#top" class="brand" aria-label="VizClix home">
+    <svg width="26" height="26" viewBox="0 0 28 28" fill="none" aria-hidden="true"><path d="M2 9V2h7M19 2h7v7M26 19v7h-7M9 26H2v-7" stroke="currentColor" stroke-width="1.5"/><circle cx="14" cy="14" r="3.2" fill="#FF6B35"/></svg>
+    <span class="brand-name">vizclix</span>
+    <i class="sep" aria-hidden="true"></i>
+    <span class="brand-sub">Aerial Real Estate</span>
+  </a>
+  <span class="bar-mid" id="bar-section" aria-hidden="true">/ 01 — Seeing Property</span>
+  <span class="bar-clock mono" id="clock" aria-hidden="true">Local 00:00</span>
+  <div class="bar-right">
+    <a href="#contact" class="quote-link">Request a Quote</a>
+    <button class="menu-btn" id="menu-btn" type="button" aria-expanded="false" aria-controls="menu"><span>menu</span><i></i></button>
+  </div>
+</header>
+
+<!-- menu overlay -->
+<nav class="menu" id="menu" aria-label="Main" hidden>
+  <ol>
+    <li><a href="#work"><span class="mono">01</span>Work</a></li>
+    <li><a href="#services"><span class="mono">02</span>Services</a></li>
+    <li><a href="#perspective"><span class="mono">03</span>Perspective</a></li>
+    <li><a href="#process"><span class="mono">04</span>Process</a></li>
+    <li><a href="#faq"><span class="mono">05</span>Questions</a></li>
+    <li><a href="#contact"><span class="mono">06</span>Let’s Talk.</a></li>
+  </ol>
+  <div class="menu-foot">
+    <a href="https://www.instagram.com/visualsbypolycrayons" rel="noopener">Instagram — @visualsbypolycrayons</a>
+    <a href="https://www.polycrayons.com" rel="noopener">Part of Polycrayons</a>
+    <button type="button" class="motion-toggle" data-motion-toggle></button>
+  </div>
+</nav>
+
+<main id="top">
+
+<!-- ============ / 01 HERO ============ -->
+<section class="hero" id="hero" data-section="/ 01 — Seeing Property">
+  <div class="frame-lines" aria-hidden="true"><i class="v"></i><i class="h"></i></div>
+  <div class="hero-grid">
+    <span class="idx">/ 01</span>
+    <div class="hero-copy">
+      <p class="slash">/ Aerial Real Estate Studio</p>
+      <h1 class="h1" data-split>Seeing Property from a Higher Perspective<span class="dot">.</span></h1>
+      <p class="body hero-body">We film and photograph developments, homes and land from the air — so a buyer understands the place before they ever visit.</p>
+      <div class="actions">
+        <a href="#contact" class="cta cta-solid">Request a Quote <svg width="18" height="12" viewBox="0 0 18 12" fill="none" aria-hidden="true"><path d="M0 6h16M11 1l5 5-5 5" stroke="currentColor" stroke-width="1.5"/></svg></a>
+        <a href="#work" class="cta cta-line">Explore the Work <svg width="18" height="12" viewBox="0 0 18 12" fill="none" aria-hidden="true"><path d="M0 6h16M11 1l5 5-5 5" stroke="currentColor" stroke-width="1.5"/></svg></a>
+      </div>
+      <p class="motion-hint" id="motion-hint" hidden>
+        <button type="button" class="motion-cta" data-motion-toggle>
+          <span class="dotpulse" aria-hidden="true"></span>Your device asks for reduced motion — <b>play the flight</b>
+          <svg width="18" height="12" viewBox="0 0 18 12" fill="none" aria-hidden="true"><path d="M0 6h16M11 1l5 5-5 5" stroke="currentColor" stroke-width="1.5"/></svg>
+        </button>
+      </p>
+    </div>
+    <div class="hero-foot">
+      <span class="mono tag">[ Aerial Stills ]</span><span class="mono tag">[ Cinematic Film ]</span><span class="mono tag">[ Surroundings ]</span>
+      <span class="scroll-cue">Scroll to Fly <i aria-hidden="true"></i></span>
+    </div>
+  </div>
+</section>
+
+<!-- ============ INTRO — word-by-word read ============ -->
+<section class="intro" id="intro" data-section="/ 02 — The View">
+  <div class="intro-stick">
+    <span class="idx">/ 02</span>
+    <div class="intro-inner">
+      <p class="slash">/ The View</p>
+      <p class="statement" data-scrub>Every property has a view that no photograph from the ground can give. We take it up there — and bring back the setting, the scale and the story.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ============ SIGNATURE FLIGHT ============ -->
+<section class="flight" id="flight" data-section="/ 03 — The Flight" aria-label="The flight">
+  <div class="flight-stick">
+    <div class="hud hud-tl mono" aria-hidden="true">[ Alt <b id="hud-alt">000</b> m ]</div>
+    <div class="hud hud-tr mono" aria-hidden="true">[ Dist <b id="hud-dist">640</b> m ]</div>
+    <div class="hud hud-bl mono" aria-hidden="true">[ Simulated Telemetry ]</div>
+    <div class="rail" aria-hidden="true"><i id="rail-fill"></i><b style="top:-6px">01</b><b style="top:calc(50% - 6px)">02</b><b style="bottom:-6px">03</b></div>
+
+    <article class="chapter" data-ch="1">
+      <span class="idx">/ 03</span>
+      <div><p class="slash">/ The Setting</p>
+      <h2 class="h2">Start Wide. See Where It Sits<span class="dot">.</span></h2>
+      <p class="body">The roads, the green, the horizon. Before the building, the place.</p></div>
+    </article>
+    <article class="chapter" data-ch="2">
+      <span class="idx">/ 04</span>
+      <div><p class="slash">/ The Approach</p>
+      <h2 class="h2">Move In. Feel the Distance<span class="dot">.</span></h2>
+      <p class="body">How far it is, how it connects, what surrounds it — shown in one continuous move.</p></div>
+    </article>
+    <article class="chapter" data-ch="3">
+      <span class="idx">/ 05</span>
+      <div><p class="slash">/ The Property</p>
+      <h2 class="h2">Arrive. Frame the Moment<span class="dot">.</span></h2>
+      <p class="body">The architecture, in context, at the scale it really has. Click.</p>
+      <a href="#work" class="link-arrow">Explore the Work <svg width="18" height="12" viewBox="0 0 18 12" fill="none" aria-hidden="true"><path d="M0 6h16M11 1l5 5-5 5" stroke="currentColor" stroke-width="1.5"/></svg></a></div>
+    </article>
+  </div>
+</section>
+
+<!-- ============ / 06 WORK ============ -->
+<section class="sec work" id="work" data-section="/ 06 — Work">
+  <div class="wrap">
+    <div class="bigword" aria-hidden="true" data-bigword>Work</div>
+    <div class="sec-head">
+      <span class="idx">/ 06</span>
+      <h2 class="h2">Selected Work — Properties in Their Setting<span class="dot">.</span></h2>
+      <p class="body">Projects from the Polycrayons studio, the practice VizClix grew out of. Aerial stills and film from VizClix shoots replace these as they are delivered.</p>
+    </div>
+    <div class="cards">
+      <a href="https://www.polycrayons.com" rel="noopener" class="card c1" aria-label="Purva Orient Grand, Bangalore — view the studio portfolio">
+        <img class="art" src="assets/work/purva-orient-grand-bangalore.jpg" width="1600" height="872" alt="Purva Orient Grand, Bangalore, lit at dusk above the city skyline." loading="lazy" decoding="async">
+        <span class="ph mono">[ Studio Work — Polycrayons ]</span>
+        <div class="meta"><span class="slash">/ Work — Spectrum Design</span><h3>Purva Orient Grand<span class="dot">.</span></h3><span class="loc mono">Bangalore</span></div><span class="num mono">01</span>
+      </a>
+      <a href="https://www.polycrayons.com" rel="noopener" class="card c2" aria-label="Mahavir Springs, Thane — view the studio portfolio">
+        <img class="art" src="assets/work/mahavir-springs-thane.jpg" width="1280" height="1600" alt="Aerial dusk view of the Mahavir Springs towers, Thane, with the surrounding roads and hills." loading="lazy" decoding="async">
+        <span class="ph mono">[ Studio Work — Polycrayons ]</span>
+        <div class="meta"><span class="slash">/ Work — ACIPL</span><h3>Mahavir Springs<span class="dot">.</span></h3><span class="loc mono">Thane · Aerial</span></div><span class="num mono">02</span>
+      </a>
+      <a href="https://www.polycrayons.com" rel="noopener" class="card c3" aria-label="Kanakiya Future City — view the studio portfolio">
+        <img class="art" src="assets/work/kanakiya-future-city.jpg" width="1600" height="1200" alt="Kanakiya Future City development seen from the air." loading="lazy" decoding="async">
+        <span class="ph mono">[ Studio Work ]</span>
+        <div class="meta"><span class="slash">/ Work — Kapadiya Associates</span><h3>Kanakiya Future City<span class="dot">.</span></h3><span class="loc mono">Mumbai</span></div><span class="num mono">03</span>
+      </a>
+      <a href="https://www.polycrayons.com" rel="noopener" class="card c4" aria-label="Centrum — view the studio portfolio">
+        <img class="art" src="assets/work/centrum-apices.jpg" width="1600" height="900" alt="The Centrum development at dusk." loading="lazy" decoding="async">
+        <span class="ph mono">[ Studio Work ]</span>
+        <div class="meta"><span class="slash">/ Work — Apices Architects</span><h3>Centrum<span class="dot">.</span></h3><span class="loc mono">Mumbai</span></div><span class="num mono">04</span>
+      </a>
+      <a href="https://www.polycrayons.com" rel="noopener" class="card c5" aria-label="Dev Datta Heights, Nagpur — view the studio portfolio">
+        <img class="art" src="assets/work/dev-datta-heights-nagpur.jpg" width="1280" height="1600" alt="Dev Datta Heights, Nagpur, standing above its neighbourhood." loading="lazy" decoding="async">
+        <span class="ph mono">[ Studio Work ]</span>
+        <div class="meta"><span class="slash">/ Work — Incepta Architects</span><h3>Dev Datta Heights<span class="dot">.</span></h3><span class="loc mono">Nagpur</span></div><span class="num mono">05</span>
+      </a>
+    </div>
+    <p class="more"><a href="https://www.instagram.com/visualsbypolycrayons" rel="noopener" class="link-arrow">Explore more on Instagram — @visualsbypolycrayons <svg width="18" height="12" viewBox="0 0 18 12" fill="none" aria-hidden="true"><path d="M0 6h16M11 1l5 5-5 5" stroke="currentColor" stroke-width="1.5"/></svg></a></p>
+  </div>
+</section>
+
+<!-- ============ / 07 SERVICES ============ -->
+<section class="sec services" id="services" data-section="/ 07 — Services">
+  <div class="wrap">
+    <div class="bigword" aria-hidden="true" data-bigword>Services</div>
+    <div class="sec-head">
+      <span class="idx">/ 07</span>
+      <h2 class="h2">What We Fly — a Short List, on Purpose<span class="dot">.</span></h2>
+      <p class="body">Categories to be confirmed before launch. Only services VizClix actually offers will stay.</p>
+    </div>
+    <ol class="svc-list">
+      <li><span class="mono n">01</span><h3>Aerial Photography</h3><p>Stills from height that show plot, frontage and neighbourhood.</p><span class="mono tbc">[ To confirm ]</span></li>
+      <li><span class="mono n">02</span><h3>Cinematic Film</h3><p>A moving view of a property’s setting and approach.</p><span class="mono tbc">[ To confirm ]</span></li>
+      <li><span class="mono n">03</span><h3>Development Films</h3><p>Longer-form film for launches, brochures and sales material.</p><span class="mono tbc">[ To confirm ]</span></li>
+      <li><span class="mono n">04</span><h3>Surroundings &amp; Location</h3><p>Roads, connectivity and landmarks around a site.</p><span class="mono tbc">[ To confirm ]</span></li>
+      <li><span class="mono n">05</span><h3>Construction Progress</h3><p>Repeat flights at agreed intervals, framed the same each time.</p><span class="mono tbc">[ To confirm ]</span></li>
+      <li class="off"><span class="mono n">06</span><h3>Property Visualisation</h3><p>Only shown if it is genuinely part of the offer.</p><span class="mono tbc">[ Not confirmed ]</span></li>
+    </ol>
+    <p class="more"><a href="#contact" class="link-arrow">Explore a Service with Us <svg width="18" height="12" viewBox="0 0 18 12" fill="none" aria-hidden="true"><path d="M0 6h16M11 1l5 5-5 5" stroke="currentColor" stroke-width="1.5"/></svg></a></p>
+  </div>
+</section>
+
+<!-- ============ / 08 PERSPECTIVE (light inversion) ============ -->
+<section class="sec perspective light" id="perspective" data-section="/ 08 — Perspective">
+  <div class="wrap">
+    <div class="sec-head">
+      <span class="idx">/ 08</span>
+      <h2 class="h2 xl">Where It Is. How Big It Is. What Surrounds It<span class="dot">.</span></h2>
+      <p class="body">From the air, a property stops being an address and becomes a place. We make no promises about sales — only a clearer picture of what is being sold.</p>
+    </div>
+    <div class="three">
+      <article>
+        <svg viewBox="0 0 44 44" aria-hidden="true"><path d="M22 40S9 27 9 17a13 13 0 0 1 26 0c0 10-13 23-13 23Z"/><circle cx="22" cy="17" r="4.5"/></svg>
+        <span class="slash">/ Location</span><h3>Where It Is</h3><p>Position against roads, water, green space and landmarks — in one frame.</p>
+      </article>
+      <article>
+        <svg viewBox="0 0 44 44" aria-hidden="true"><path d="M6 36h32M6 36V8M12 36V28M18 36V20M24 36V24M30 36V14M36 36V30"/></svg>
+        <span class="slash">/ Scale</span><h3>How Big It Is</h3><p>Plot, frontage and massing shown in proportion, not guessed from a plan.</p>
+      </article>
+      <article>
+        <svg viewBox="0 0 44 44" aria-hidden="true"><path d="M4 30C14 30 14 14 24 14s10 16 16 16M4 38h36"/><circle cx="24" cy="14" r="3"/></svg>
+        <span class="slash">/ Context</span><h3>What Surrounds It</h3><p>Neighbours, access and the outlook a resident will actually have.</p>
+      </article>
+    </div>
+  </div>
+</section>
+
+<!-- ============ / 09 PROCESS ============ -->
+<section class="sec process" id="process" data-section="/ 09 — Process">
+  <div class="wrap">
+    <div class="bigword" aria-hidden="true" data-bigword>Process</div>
+    <div class="sec-head">
+      <span class="idx">/ 09</span>
+      <h2 class="h2">From Enquiry to Delivery — Step by Step<span class="dot">.</span></h2>
+      <p class="body">Most of a good aerial shoot is decided before take-off. Timings are confirmed per project.</p>
+    </div>
+    <ol class="steps">
+      <li><span class="num" aria-hidden="true">01</span><h3>Enquiry</h3><p>Tell us the property, the location and what the footage is for. We reply with questions and a scope.</p></li>
+      <li><span class="num" aria-hidden="true">02</span><h3>Plan</h3><p>Site, airspace and permissions checked. Shot list set around light and weather.</p></li>
+      <li><span class="num" aria-hidden="true">03</span><h3>Shoot</h3><p>Flights to the shot list, with extra coverage where the brief calls for it.</p></li>
+      <li><span class="num" aria-hidden="true">04</span><h3>Edit &amp; Grade</h3><p>Selection, cut and colour matched to the property and its audience.</p></li>
+      <li><span class="num" aria-hidden="true">05</span><h3>Delivery</h3><p>Files by link. Agreed revisions: <span class="mono tbc">[ number to confirm ]</span>.</p></li>
+    </ol>
+  </div>
+</section>
+
+<!-- ============ / 10 PROOF ============ -->
+<section class="sec proof" id="proof" data-section="/ 10 — Proof">
+  <div class="wrap">
+    <div class="sec-head">
+      <span class="idx">/ 10</span>
+      <h2 class="h2">Proof, Shown When It’s Real<span class="dot">.</span></h2>
+      <p class="body">These slots stay empty until there is something true to put in them. No invented logos, quotes or numbers.</p>
+    </div>
+    <div class="slots">
+      <div class="slot"><span class="mono">[ Client Logos ]</span><p>Only clients who have agreed to be named.</p></div>
+      <div class="slot"><span class="mono">[ Client Words ]</span><p>A real quote, with name, role and permission.</p></div>
+      <div class="slot"><span class="mono">[ Credentials Held ]</span><p>Pilot certification and any airspace permissions actually held.</p></div>
+      <div class="slot"><span class="mono">[ Service Area ]</span><p>The cities and regions actually covered.</p></div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ / 11 QUESTIONS ============ -->
+<section class="sec faq" id="faq" data-section="/ 11 — Questions">
+  <div class="wrap faq-grid">
+    <div class="sec-head">
+      <span class="idx">/ 11</span>
+      <h2 class="h2">Before You Book<span class="dot">.</span></h2>
+    </div>
+    <div class="qs">
+      <details class="q" open><summary>Is my property suitable for an aerial shoot?<i aria-hidden="true"></i></summary><div class="a">Most developments, plots and standalone properties can be assessed from an address and a few photos. Tell us what you have and we will say what is possible. <span class="mono tbc">[ Suitability limits to confirm ]</span></div></details>
+      <details class="q"><summary>Where do you work?<i aria-hidden="true"></i></summary><div class="a"><span class="mono tbc">[ Coverage area to confirm ]</span> If your site is outside it, ask — travel can sometimes be arranged.</div></details>
+      <details class="q"><summary>How should I prepare the site?<i aria-hidden="true"></i></summary><div class="a">Clear vehicles and temporary clutter where you can, and give us access details and a site contact. We confirm the rest when planning.</div></details>
+      <details class="q"><summary>What do I receive?<i aria-hidden="true"></i></summary><div class="a">Edited stills and film, delivered by link. <span class="mono tbc">[ Formats, resolutions and usage rights to confirm ]</span></div></details>
+      <details class="q"><summary>How long does delivery take?<i aria-hidden="true"></i></summary><div class="a">It depends on scope and weather. <span class="mono tbc">[ Turnaround to confirm — no promise until verified ]</span></div></details>
+      <details class="q"><summary>Do you handle flight permissions?<i aria-hidden="true"></i></summary><div class="a">Airspace and site permissions are checked in planning. <span class="mono tbc">[ What VizClix handles vs. what the client provides ]</span></div></details>
+      <details class="q"><summary>How is pricing worked out?<i aria-hidden="true"></i></summary><div class="a">By scope: number of locations, stills or film, and edit length. <span class="mono tbc">[ Pricing model to confirm ]</span></div></details>
+    </div>
+  </div>
+</section>
+
+<!-- ============ / 12 CONTACT ============ -->
+<section class="sec contact" id="contact" data-section="/ 12 — Let’s Talk">
+  <div class="wrap">
+    <div class="bigword" aria-hidden="true" data-bigword>Talk</div>
+    <div class="contact-grid">
+      <div class="sec-head">
+        <span class="idx">/ 12</span>
+        <h2 class="h2">Let’s Talk Property<span class="dot">.</span></h2>
+        <p class="body">A few details are enough to start. We reply with questions and a scope. <span class="mono tbc">[ Reply time to confirm ]</span></p>
+      </div>
+      <form class="form" novalidate>
+        <div class="fgrid">
+          <div class="field"><label for="f-name">Your Name *</label><input id="f-name" name="name" type="text" placeholder="Full name" autocomplete="name" required><p class="msg">Please tell us your name.</p></div>
+          <div class="field"><label for="f-email">Email *</label><input id="f-email" name="email" type="email" placeholder="name@company.com" autocomplete="email" required><p class="msg">Enter an email we can reply to.</p></div>
+          <div class="field"><label for="f-phone">Phone / WhatsApp</label><input id="f-phone" name="phone" type="tel" placeholder="Optional" autocomplete="tel"></div>
+          <div class="field"><label for="f-type">Property Type</label><select id="f-type" name="type"><option>Residential development</option><option>Single property</option><option>Commercial</option><option>Plot / land</option><option>Other</option></select></div>
+          <div class="field full"><label for="f-loc">Location *</label><input id="f-loc" name="location" type="text" placeholder="Area, city, or a map pin link" required><p class="msg">Where is the property?</p></div>
+          <div class="field full"><span class="lab" id="f-svc">What Do You Need?</span>
+            <div class="chips" role="group" aria-labelledby="f-svc">
+              <label class="chip"><input type="checkbox" name="svc" value="stills"><span>Stills</span></label>
+              <label class="chip"><input type="checkbox" name="svc" value="film"><span>Film</span></label>
+              <label class="chip"><input type="checkbox" name="svc" value="surroundings"><span>Surroundings</span></label>
+              <label class="chip"><input type="checkbox" name="svc" value="progress"><span>Construction Progress</span></label>
+              <label class="chip"><input type="checkbox" name="svc" value="unsure"><span>Not Sure Yet</span></label>
+            </div></div>
+          <div class="field"><label for="f-when">Preferred Timing</label><input id="f-when" name="timing" type="text" placeholder="e.g. before launch in March"></div>
+          <div class="field"><label for="f-link">Reference Link</label><input id="f-link" name="link" type="url" placeholder="Optional — brochure or site"></div>
+          <div class="field full"><label for="f-brief">Brief</label><textarea id="f-brief" name="brief" placeholder="What is the footage for, and who will see it?"></textarea></div>
+          <div class="full consent"><input id="f-consent" type="checkbox" name="consent" required><label for="f-consent">I agree to be contacted about this enquiry.</label></div>
+          <div class="full fsub">
+            <button type="button" class="cta cta-solid">Send Enquiry <svg width="18" height="12" viewBox="0 0 18 12" fill="none" aria-hidden="true"><path d="M0 6h16M11 1l5 5-5 5" stroke="currentColor" stroke-width="1.5"/></svg></button>
+            <span class="mono note">[ Prototype — submission not wired ]</span>
+          </div>
+        </div>
+      </form>
+    </div>
+  </div>
+</section>
+
+</main>
+
+<footer class="foot">
+  <div class="wrap">
+    <div class="foot-word" aria-hidden="true">VizClix<span class="dot">.</span></div>
+    <div class="foot-row">
+      <p class="body">Aerial photography and film for real estate.</p>
+      <nav aria-label="Footer">
+        <a href="#work">Work</a><a href="#services">Services</a><a href="#process">Process</a><a href="#faq">Questions</a>
+        <a href="https://www.instagram.com/visualsbypolycrayons" rel="noopener">Instagram</a>
+        <a href="https://www.polycrayons.com" rel="noopener">Part of Polycrayons</a>
+        <button type="button" class="motion-toggle" data-motion-toggle></button>
+      </nav>
+      <p class="mono contact-ph">[ Email ] · [ Phone / WhatsApp ] · [ Legal entity ]</p>
+    </div>
+  </div>
+</footer>
+
+<script type="module" src="js/main.js"></script>
+</body>
+</html>

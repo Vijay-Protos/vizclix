@@ -1,0 +1,121 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Drone model test</title>
+<style>
+  html,body{margin:0;height:100%;overflow:hidden;background:#0a0b0d;font:12px/1.4 ui-monospace,Menlo,monospace;color:#ccc}
+  canvas{display:block}
+  #ui{position:fixed;left:12px;top:12px;padding:10px 12px;background:rgba(20,20,22,.7);border:1px solid #333;border-radius:6px;backdrop-filter:blur(6px)}
+  #ui label{display:block;margin-top:6px}
+  #ui input[type=range]{width:160px;vertical-align:middle}
+  #ui button{margin-top:6px;margin-right:4px;background:#222;color:#ddd;border:1px solid #444;border-radius:4px;padding:2px 8px;cursor:pointer}
+</style>
+<script type="importmap">
+{ "imports": { "three": "./vendor/three/three.module.js", "three/addons/": "./vendor/three/addons/" } }
+</script>
+</head>
+<body>
+<div id="ui">
+  <div id="stats">...</div>
+  <label>throttle <input id="thr" type="range" min="0" max="1" step="0.01" value="0"> <span id="thrv">0.00</span></label>
+  <label><input id="bg" type="checkbox"> light background</label>
+  <label><input id="anim" type="checkbox"> animate gimbal / LEDs</label>
+  <div>
+    <button data-v="front">front</button><button data-v="three">3/4</button><button data-v="side">side</button>
+    <button data-v="top">top</button><button data-v="rear">rear</button><button data-v="gimbal">gimbal</button>
+  </div>
+</div>
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
+const { buildDrone } = await import('./js/drone.js?t=' + Date.now());
+
+const renderer = new THREE.WebGLRenderer({ antialias: true });
+renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+renderer.setSize(innerWidth, innerHeight);
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 1.0;
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFShadowMap;
+document.body.appendChild(renderer.domElement);
+
+const scene = new THREE.Scene();
+const DARK = new THREE.Color(0x0a0b0d), LIGHT = new THREE.Color(0xf4f5f6);
+scene.background = DARK.clone();
+const pmrem = new THREE.PMREMGenerator(renderer);
+scene.environment = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
+
+const camera = new THREE.PerspectiveCamera(35, innerWidth / innerHeight, 0.1, 100);
+camera.position.set(3.6, 2.2, 4.6);
+const controls = new OrbitControls(camera, renderer.domElement);
+controls.enableDamping = true;
+controls.target.set(0, -0.05, 0);
+
+const key = new THREE.DirectionalLight(0xfff4e6, 2.2);
+key.position.set(3, 5, 2.5);
+key.castShadow = true;
+key.shadow.mapSize.set(2048, 2048);
+key.shadow.camera.left = -3; key.shadow.camera.right = 3;
+key.shadow.camera.top = 3; key.shadow.camera.bottom = -3;
+key.shadow.camera.near = 0.5; key.shadow.camera.far = 14;
+key.shadow.bias = -0.0004; key.shadow.normalBias = 0.02;
+scene.add(key);
+
+const ground = new THREE.Mesh(new THREE.PlaneGeometry(12, 12), new THREE.ShadowMaterial({ opacity: 0.25 }));
+ground.rotation.x = -Math.PI / 2;
+ground.position.y = -0.42;
+ground.receiveShadow = true;
+scene.add(ground);
+
+const drone = buildDrone(THREE);
+scene.add(drone.group);
+window.drone = drone; window.THREE = THREE; window.camera = camera; window.controls = controls;
+
+const $ = (id) => document.getElementById(id);
+const views = {
+  front: [0, 0.25, 5.6], three: [3.6, 2.2, 4.6], side: [5.6, 0.2, 0],
+  top: [0.001, 6.2, 0.01], rear: [0, 0.6, -5.6], gimbal: [0.9, -0.15, 1.9],
+};
+function setView(n) {
+  camera.position.set(...views[n]);
+  controls.target.set(0, n === 'gimbal' ? -0.3 : -0.05, n === 'gimbal' ? 0.5 : 0);
+  controls.update();
+}
+document.querySelectorAll('button[data-v]').forEach((b) => b.onclick = () => setView(b.dataset.v));
+window.setView = setView;
+$('bg').onchange = (e) => {
+  scene.background.copy(e.target.checked ? LIGHT : DARK);
+  document.body.style.background = e.target.checked ? '#f4f5f6' : '#0a0b0d';
+};
+$('thr').oninput = (e) => $('thrv').textContent = (+e.target.value).toFixed(2);
+
+const clock = new THREE.Timer();
+let tAcc = 0;
+function loop() {
+  clock.update(); const dt = Math.min(clock.getDelta(), 0.05);
+  tAcc += dt;
+  const thr = +$('thr').value;
+  drone.update(dt, thr);
+  drone.setLedPulse(tAcc);
+  if ($('anim').checked) {
+    drone.gimbal.rotation.x = Math.sin(tAcc * 0.8) * 0.25;
+    drone.gimbal.rotation.z = Math.sin(tAcc * 0.6) * 0.08;
+    drone.gimbalYaw.rotation.y = Math.sin(tAcc * 0.5) * 0.3;
+  }
+  controls.update();
+  renderer.render(scene, camera);
+  const i = renderer.info;
+  $('stats').textContent = `tris ${i.render.triangles}  calls ${i.render.calls}`;
+  requestAnimationFrame(loop);
+}
+loop();
+addEventListener('resize', () => {
+  camera.aspect = innerWidth / innerHeight; camera.updateProjectionMatrix();
+  renderer.setSize(innerWidth, innerHeight);
+});
+</script>
+</body>
+</html>
