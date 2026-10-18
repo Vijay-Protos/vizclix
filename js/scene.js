@@ -24,6 +24,12 @@ const K = [
   // reader, y=PI faces away, y=PI/2 points screen-right, y=3PI/2 points screen-left.
   { T: 3.4, cam: [-2.6, 0.5, 9.6], look: [0, -0.7, 0], pos: [1.4, 0.6, 0],  rot: [0.05, 3.95, 0.02],  fov: 35, sc: 0.78, thr: 0.8,  gim: -0.7 },
   { T: 4.0, cam: [0, 0, 10], look: [0, 0, 0], pos: [4.7, 2.45, 0],   rot: [0.09, 4.50, -0.04], fov: 35, sc: 0.50, thr: 0.7,  gim: -0.65 }, // Work: turned in, looking down over the grid
+  // The work grid is a wall of images across the full column, and the drone is behind the page.
+  // There is no lane through it — part way down, every pixel of the frame is a card — so holding
+  // a station there slices the drone on a card edge. It climbs out of shot instead, leaves the
+  // work to be read, and drops back in once the grid has passed.
+  { T: 4.12, cam: [0, 0, 10], look: [0, 0, 0], pos: [5.0, 5.0, 0],   rot: [0.13, 4.55, -0.03], fov: 35, sc: 0.48, thr: 1.0,  gim: -0.8 },  // climbing out over the grid
+  { T: 4.2, cam: [0, 0, 10], look: [0, 0, 0], pos: [5.6, 4.8, 0],    rot: [0.08, 4.60, 0.01],  fov: 35, sc: 0.42, thr: 0.9,  gim: -0.6 },  // holding above the frame
   { T: 4.3, cam: [0, 0, 10], look: [0, 0, 0], pos: [6.1, 1.4, 0],    rot: [0.06, 4.65, 0.02],  fov: 35, sc: 0.30, thr: 0.6,  gim: -0.4 },  // Case study: holds the margin
   { T: 4.6, cam: [0, 0, 10], look: [0, 0, 0], pos: [4.8, 2.35, 0],   rot: [0.06, 4.75, 0.03],  fov: 35, sc: 0.46, thr: 0.65, gim: -0.55 },
   { T: 5.0, cam: [0, 0, 10], look: [0, 0, 0], pos: [4.85, 0.7, 0],   rot: [0.05, 4.95, 0.04],  fov: 35, sc: 0.44, thr: 0.7,  gim: -0.4 },  // Services: nose to the list, descending it
