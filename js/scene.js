@@ -20,19 +20,23 @@ const K = [
   { T: 2.75, cam: [-5.4, 0.3, 8.2], look: [0.0, -2.3, -1.2], pos: [0, 0, 0], rot: [0.08, 3.5, 0.05],  fov: 35, sc: 1.0,  thr: 0.8,  gim: -0.95 },
   { T: 3.0, cam: [-6.4, 0.7, 8.6], look: [0.0, -2.1, 0],  pos: [0, 0, 0], rot: [0.03, 3.65, 0.0],    fov: 36, sc: 1.0,  thr: 0.6,  gim: -1.15 },
   // --- the escort: camera holds a studio view, the drone takes a station per section ---
-  { T: 3.4, cam: [-2.6, 0.5, 9.6], look: [0, -0.7, 0], pos: [1.4, 0.6, 0],   rot: [0.05, 3.95, 0.02],  fov: 35, sc: 0.78, thr: 0.8,  gim: -0.7 },
-  { T: 4.0, cam: [0, 0, 10],  look: [0, 0, 0], pos: [4.7, 2.45, 0],  rot: [0.09, 4.35, -0.04], fov: 35, sc: 0.5 , thr: 0.7,  gim: -0.6 },  // Work: high right, looking down at the grid
-  { T: 4.5, cam: [0, 0, 10],  look: [0, 0, 0], pos: [4.8, 2.35, 0],   rot: [0.06, 4.8, 0.03],   fov: 35, sc: 0.46, thr: 0.65, gim: -0.5 },
-  { T: 5.0, cam: [0, 0, 10],  look: [0, 0, 0], pos: [4.85, 0.7, 0],   rot: [0.05, 5.35, 0.05],  fov: 35, sc: 0.44,  thr: 0.7,  gim: -0.35 }, // Services: descends the list
-  { T: 5.6, cam: [0, 0, 10],  look: [0, 0, 0], pos: [4.7, -2.25, .4], rot: [0.08, 5.9, -0.03], fov: 35, sc: 0.5 , thr: 0.75, gim: -0.3 },
-  { T: 6.0, cam: [0, .3, 10], look: [0, .2, 0], pos: [5.4, -1.3, 1.0], rot: [0.16, 6.5, 0.04],  fov: 35, sc: 0.5 , thr: 0.8,  gim: -0.25 }, // Perspective: daylight, close
-  { T: 6.6, cam: [0, 0, 10],  look: [0, 0, 0], pos: [1.7, -2.0, 0.8], rot: [0.17, 7.1, -0.02], fov: 35, sc: 0.88,  thr: 0.75, gim: -0.3 },
-  { T: 7.0, cam: [0, 0, 10],  look: [0, 0, 0], pos: [-4.7, -2.5, 0],  rot: [0.04, 7.85, 0.06], fov: 35, sc: 0.42, thr: 0.9,  gim: -0.2 }, // Process: a playhead across the steps
-  { T: 7.5, cam: [0, 0, 10],  look: [0, 0, 0], pos: [5.3, -1.1, -1],   rot: [0.04, 8.2, -0.05], fov: 35, sc: 0.3,  thr: 0.85, gim: -0.2 },
-  { T: 8.0, cam: [0, 0, 10],  look: [0, 0, 0], pos: [4.8, 2.45, -2.2], rot: [0.03, 8.6, 0.02],  fov: 35, sc: 0.32, thr: 0.5,  gim: -0.25 }, // Proof + FAQ: withdraws, quiet
-  { T: 8.5, cam: [0, 0, 10],  look: [0, 0, 0], pos: [-4.3, 1.3, 0],   rot: [0.05, 9.0, 0.0],   fov: 35, sc: 0.46, thr: 0.6,  gim: -0.4 },  // Contact: returns, begins descent
-  { T: 9.0, cam: [0, -.4, 10], look: [0, -.5, 0], pos: [-4.1, -1.9, .4], rot: [0.0, 9.42, 0.0], fov: 35, sc: 0.6 , thr: 0.22, gim: -0.1 }, // touchdown
-  { T: 9.4, cam: [0, -.4, 10], look: [0, -.5, 0], pos: [-4.1, -2.12, .4], rot: [0.0, 9.42, 0.0], fov: 35, sc: 0.6 , thr: 0.0, gim: 0.0 },  // landed by the footer
+  // Yaw is deliberate: the drone faces what it is looking at. Front is +Z, so y=0 faces the
+  // reader, y=PI faces away, y=PI/2 points screen-right, y=3PI/2 points screen-left.
+  { T: 3.4, cam: [-2.6, 0.5, 9.6], look: [0, -0.7, 0], pos: [1.4, 0.6, 0],  rot: [0.05, 3.95, 0.02],  fov: 35, sc: 0.78, thr: 0.8,  gim: -0.7 },
+  { T: 4.0, cam: [0, 0, 10], look: [0, 0, 0], pos: [4.7, 2.45, 0],   rot: [0.09, 4.50, -0.04], fov: 35, sc: 0.50, thr: 0.7,  gim: -0.65 }, // Work: turned in, looking down over the grid
+  { T: 4.5, cam: [0, 0, 10], look: [0, 0, 0], pos: [4.8, 2.35, 0],   rot: [0.06, 4.75, 0.03],  fov: 35, sc: 0.46, thr: 0.65, gim: -0.55 },
+  { T: 5.0, cam: [0, 0, 10], look: [0, 0, 0], pos: [4.85, 0.7, 0],   rot: [0.05, 4.95, 0.04],  fov: 35, sc: 0.44, thr: 0.7,  gim: -0.4 },  // Services: nose to the list, descending it
+  { T: 5.6, cam: [0, 0, 10], look: [0, 0, 0], pos: [4.7, -2.25, .4], rot: [0.08, 5.40, -0.03], fov: 35, sc: 0.50, thr: 0.75, gim: -0.3 },
+  { T: 6.0, cam: [0, .3, 10], look: [0, .2, 0], pos: [5.4, -1.3, 1.0], rot: [0.16, 6.00, 0.04], fov: 35, sc: 0.50, thr: 0.8,  gim: -0.25 }, // Perspective: a glimpse at the edge
+  { T: 6.6, cam: [0, 0, 10], look: [0, 0, 0], pos: [1.7, -2.0, 0.8], rot: [0.17, 6.85, -0.02], fov: 35, sc: 0.88, thr: 0.75, gim: -0.3 },  // daylight reveal, turned to face the reader
+  { T: 7.0, cam: [0, 0, 10], look: [0, 0, 0], pos: [-4.7, -2.5, 0],  rot: [0.04, 7.854, 0.06], fov: 35, sc: 0.42, thr: 0.9,  gim: -0.2 },  // Process: nose screen-right, a playhead
+  { T: 7.4, cam: [0, 0, 10], look: [0, 0, 0], pos: [4.6, -2.5, 0],   rot: [0.04, 7.854, -0.06], fov: 35, sc: 0.42, thr: 0.9, gim: -0.2 },  // ...holding that heading as it crosses
+  { T: 7.8, cam: [0, 0, 10], look: [0, 0, 0], pos: [6.0, 1.2, -0.5],  rot: [0.05, 8.60, 0.03],  fov: 35, sc: 0.32, thr: 0.7,  gim: -0.3 },  // Partner: stands off at the margin
+  { T: 8.2, cam: [0, 0, 10], look: [0, 0, 0], pos: [6.0, -1.4, -1],  rot: [0.04, 9.00, -0.05], fov: 35, sc: 0.30, thr: 0.6,  gim: -0.2 },  // Proof: quiet
+  { T: 8.6, cam: [0, 0, 10], look: [0, 0, 0], pos: [4.8, 2.45, -2.2], rot: [0.03, 9.30, 0.02], fov: 35, sc: 0.32, thr: 0.5,  gim: -0.25 }, // FAQ: withdrawn
+  { T: 9.0, cam: [0, 0, 10], look: [0, 0, 0], pos: [-4.6, -0.9, 0],  rot: [0.05, 10.4, 0.0],   fov: 35, sc: 0.44, thr: 0.6,  gim: -0.4 },  // Contact: returns, turning to face the reader
+  { T: 9.4, cam: [0, -.4, 10], look: [0, -.5, 0], pos: [-4.1, -1.9, .4],  rot: [0.0, 11.6, 0.0], fov: 35, sc: 0.6, thr: 0.22, gim: -0.1 }, // touchdown
+  { T: 9.7, cam: [0, -.4, 10], look: [0, -.5, 0], pos: [-4.1, -2.12, .4], rot: [0.0, 12.0, 0.0], fov: 35, sc: 0.6, thr: 0.0,  gim: 0.0 },  // landed, facing you
 ];
 const N = 16;
 const FLAT = K.map((k) => [...k.cam, ...k.look, ...k.pos, ...k.rot, k.fov, k.sc, k.thr, k.gim]);
@@ -138,7 +142,7 @@ export function createWorld({ canvas, drone, quality }) {
 
   // wireframe property at the pin
   const pin = new THREE.Group(); scene.add(pin);
-  const fillMat = new THREE.MeshBasicMaterial({ color: 0x151a21, polygonOffset: true, polygonOffsetFactor: 1, polygonOffsetUnits: 1 });
+  const fillMat = new THREE.MeshBasicMaterial({ transparent: true, color: 0x151a21, polygonOffset: true, polygonOffsetFactor: 1, polygonOffsetUnits: 1 });
   const edgeMat = new THREE.LineBasicMaterial({ color: BONE, transparent: true, opacity: 0.6 });
   const edgeHot = new THREE.LineBasicMaterial({ color: EMBER });
   const boxes = [
@@ -157,6 +161,34 @@ export function createWorld({ canvas, drone, quality }) {
   const baseRing = new THREE.Mesh(new THREE.RingGeometry(3.9, 3.94, 96),
     new THREE.MeshBasicMaterial({ color: EMBER, transparent: true, opacity: 0.8, side: THREE.DoubleSide }));
   baseRing.rotation.x = -Math.PI / 2; baseRing.position.y = 0.01; pin.add(baseRing);
+
+  // The payoff: the wireframe survey resolves into a real finished image of the property.
+  // Soft-edged so it reads as a frame emerging, not a photo pasted on the scene.
+  const PLATE_VS = `varying vec2 vUv; void main(){ vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position,1.0); }`;
+  const PLATE_FS = `
+    uniform sampler2D uMap; uniform float uAmt; uniform vec3 uInk; varying vec2 vUv;
+    void main(){
+      vec2 d = abs(vUv - 0.5) * 2.0;
+      float edge = (1.0 - smoothstep(0.55, 1.0, d.x)) * (1.0 - smoothstep(0.6, 1.0, d.y));
+      // the image develops from the centre outwards as the drone arrives
+      float develop = smoothstep(0.0, 1.0, uAmt * 1.9 - length(vUv - 0.5) * 1.1);
+      vec3 c = texture2D(uMap, vUv).rgb;
+      float a = edge * develop;
+      if (a < 0.004) discard;
+      gl_FragColor = vec4(mix(uInk, c, clamp(develop + 0.15, 0.0, 1.0)), a);
+    }`;
+  const plateMat = new THREE.ShaderMaterial({
+    vertexShader: PLATE_VS, fragmentShader: PLATE_FS, transparent: true, depthWrite: false,
+    uniforms: { uMap: { value: null }, uAmt: { value: 0 }, uInk: { value: new THREE.Color(INK) } },
+  });
+  const plate = new THREE.Mesh(new THREE.PlaneGeometry(7.4, 9.25), plateMat);
+  plate.position.set(1.9, 1.5, 1.2); plate.visible = false; pin.add(plate);
+  new THREE.TextureLoader().load(
+    'assets/work/mahavir-springs-thane.jpg',
+    (tex) => { tex.colorSpace = THREE.SRGBColorSpace; plateMat.uniforms.uMap.value = tex; },
+    undefined,
+    () => { /* no plate if the image cannot load; the wireframe reveal still reads */ },
+  );
 
   // scanner under the drone
   const scan = new THREE.Group(); scan.position.y = -5.97; scene.add(scan);
@@ -208,18 +240,18 @@ export function createWorld({ canvas, drone, quality }) {
   function phoneBeat(T) {
     if (T < 3.3) return 1;
     const reveal = clamp01((T - 6.3) / 0.3) * (1 - clamp01((T - 6.62) / 0.22));
-    return Math.max(reveal, clamp01((T - 8.35) / 0.4));
+    return Math.max(reveal, clamp01((T - 8.85) / 0.4));
   }
   const bg = new THREE.Color();
   const INK_C = new THREE.Color(INK), BONE_C = new THREE.Color(BONE);
 
   // s: { T, time, dt, light }  — light 0..1 crossfades the world to the daylight section
   function update(s) {
-    const T = Math.min(9.4, Math.max(0, s.T));
+    const T = Math.min(9.7, Math.max(0, s.T));
     const v = sample(T);
     const f = clamp01(T - 2);                 // the flight, 0 → 1
     const esc = clamp01((T - 3) / 0.35);      // hand-over from flight to escort
-    const land = clamp01((T - 8.55) / 0.5);   // descent onto the pad
+    const land = clamp01((T - 9.05) / 0.45);  // descent onto the pad
     const portrait = aspect < 0.9;
     const scrollZ = T < 2 ? T * 6 : 12 + f * 78;
 
@@ -229,10 +261,14 @@ export function createWorld({ canvas, drone, quality }) {
     tmat.uniforms.uFade.value = 1 - esc;
     terrain.visible = esc < 1;
     pin.position.set(0, -6, pinT.y + scrollZ);
+    const reveal = clamp01((T - 2.5) / 0.45) * (1 - esc);   // survey → finished image
     pin.visible = esc < 1 && pin.position.z > -120;
-    edgeMat.opacity = 0.6 * (1 - esc);
-    edgeHot.opacity = 1 - esc;
-    beam.material.opacity = 0.55 * (1 - esc);
+    plate.visible = reveal > 0.01 && plateMat.uniforms.uMap.value !== null;
+    plateMat.uniforms.uAmt.value = reveal;
+    fillMat.opacity = 1 - reveal * 0.85;
+    edgeMat.opacity = 0.6 * (1 - esc) * (1 - reveal * 0.45);
+    edgeHot.opacity = (1 - esc) * (1 - reveal * 0.25);
+    beam.material.opacity = 0.55 * (1 - esc) * (1 - reveal);
     baseRing.material.opacity = 0.8 * (1 - esc);
     dust.position.z = scrollZ % 70;
     dust.material.opacity = 0.35 * (1 - esc);
