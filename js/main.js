@@ -261,7 +261,7 @@ async function boot3D() {
     steps.engine = true;
     drone = buildDrone(THREE, addons);
     steps.model = true;
-    const quality = small ? { dpr: 1.5, seg: 110, dust: 220, aa: false } : { dpr: 2, seg: 220, dust: 520, aa: true };
+    const quality = small ? { dpr: 1.5, seg: 110, dust: 220, aa: false, city: 190 } : { dpr: 2, seg: 220, dust: 520, aa: true, city: 420 };
     world = createWorld({ canvas, drone, quality });
     world.update({ T: 0, time: 0, dt: 0, light: 0 });
     steps.frame = true;
