@@ -98,13 +98,17 @@ $$('a', menu).forEach((a) => a.addEventListener('click', () => setMenu(false)));
 /* ---------- motion switch ---------- */
 const hint = $('#motion-hint');
 if (hint && reduce) hint.hidden = false;
+function setMotion(on) {
+  try { localStorage.setItem('vc-motion', on ? 'on' : 'off'); } catch (_) { /* storage unavailable */ }
+  location.reload();
+}
+// the hero prompt only ever turns motion on; it is shown only when motion is off
+$$('[data-motion-on]').forEach((b) => b.addEventListener('click', () => setMotion(true)));
+// the footer and menu control flips whichever way it currently sits
 $$('[data-motion-toggle]').forEach((b) => {
-  if (!b.closest('.motion-hint')) b.textContent = reduce ? 'Motion — Reduced · switch on' : 'Motion — On · reduce';
+  b.textContent = reduce ? 'Motion — Reduced · switch on' : 'Motion — On · reduce';
   b.setAttribute('aria-pressed', String(!reduce));
-  b.addEventListener('click', () => {
-    try { localStorage.setItem('vc-motion', reduce ? 'on' : 'off'); } catch (_) { /* storage unavailable */ }
-    location.reload();
-  });
+  b.addEventListener('click', () => setMotion(reduce));
 });
 
 /* ---------- contact: two audiences ---------- */

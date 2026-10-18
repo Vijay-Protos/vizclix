@@ -111,20 +111,21 @@ export function buildDrone(THREE, addons = {}) {
     return pts;
   }
 
-  // Rounded slab: superellipse footprint, thickness h along Y, soft bevels, centred on the origin.
-  function slab(w, d, h, bevel, n = 3, taper = 0) {
-    const pts = outline(w / 2 - bevel, d / 2 - bevel, n, taper);
+  // Extrude a closed outline [[x,z]...] into a chamfered plate of thickness h.
+  // Tight chamfers + angle-limited normals are what give the machined read.
+  function plate(pts, h, bevel, segs = 2) {
+    const clean = [];
+    for (const pt of pts) {
+      const last = clean[clean.length - 1];
+      if (!last || Math.abs(last[0] - pt[0]) > 1e-6 || Math.abs(last[1] - pt[1]) > 1e-6) clean.push(pt);
+    }
     const shape = new THREE.Shape();
-    pts.forEach(([x, z], i) => (i ? shape.lineTo(x, -z) : shape.moveTo(x, -z)));
+    clean.forEach(([x, z], i) => (i ? shape.lineTo(x, -z) : shape.moveTo(x, -z)));
     shape.closePath();
-    const depth = h - 2 * bevel;
+    const depth = Math.max(0.002, h - 2 * bevel);
     const g = new THREE.ExtrudeGeometry(shape, {
-      depth,
-      bevelEnabled: true,
-      bevelThickness: bevel,
-      bevelSize: bevel,
-      bevelSegments: 5,
-      curveSegments: 1,
+      depth, bevelEnabled: true, bevelThickness: bevel, bevelSize: bevel,
+      bevelSegments: segs, curveSegments: 1,
     });
     g.translate(0, 0, -depth / 2);
     g.rotateX(-PI / 2);
@@ -132,28 +133,103 @@ export function buildDrone(THREE, addons = {}) {
     return g;
   }
 
-  // Area-weighted smooth normals across coincident vertices (soft shell, no faceting).
-  function smoothNormals(g) {
+  // Chamfered slab with a superellipse footprint, centred on the origin.
+  function slab(w, d, h, bevel, n = 3, taper = 0, N = 72, segs = 2) {
+    return plate(outline(w / 2 - bevel, d / 2 - bevel, n, taper, N), h, bevel, segs);
+  }
+
+  // Clip a closed outline to a z band, so panel plates get flat machined cut ends.
+  function clipZ(pts, zmin, zmax) {
+    let poly = pts;
+    for (const [sign, bound] of [[1, zmin], [-1, zmax]]) {
+      const out = [];
+      const inside = (q) => sign * (q[1] - bound) >= 0;
+      for (let i = 0; i < poly.length; i++) {
+        const a = poly[i];
+        const b = poly[(i + 1) % poly.length];
+        const ia = inside(a);
+        if (ia) out.push(a);
+        if (ia !== inside(b)) {
+          const t = (bound - a[1]) / (b[1] - a[1]);
+          out.push([a[0] + (b[0] - a[0]) * t, bound]);
+        }
+      }
+      poly = out;
+      if (!poly.length) break;
+    }
+    return poly;
+  }
+
+  // Chamfered rectangular beam running from a to b.
+  function beam(a, b, w, t, bevel = 0.018, n = 9) {
+    const f = new THREE.Vector3().subVectors(b, a);
+    const L = f.length();
+    f.normalize();
+    const side = new THREE.Vector3(0, 1, 0).cross(f).normalize();
+    const up = new THREE.Vector3().crossVectors(f, side);
+    const g = slab(w, L, t, bevel, n, 0, 28);
+    const m = new THREE.Matrix4().makeBasis(side, up, f);
+    m.setPosition((a.x + b.x) / 2, (a.y + b.y) / 2, (a.z + b.z) / 2);
+    g.applyMatrix4(m);
+    return g;
+  }
+
+  // Re-normal an indexed primitive with the same break angle as the shell.
+  function crisp(g, angle = 44) {
+    const ng = g.index ? g.toNonIndexed() : g;
+    smoothNormals(ng, angle);
+    return ng;
+  }
+
+  // Normals are averaged only across edges below the break angle, so flat faces
+  // stay flat and every chamfer keeps a narrow, deliberate specular band.
+  function smoothNormals(g, breakAngle = 44) {
     const p = g.attributes.position;
     const n = p.count;
-    const acc = new Map();
-    const key = (i) => `${Math.round(p.getX(i) * 1e4)},${Math.round(p.getY(i) * 1e4)},${Math.round(p.getZ(i) * 1e4)}`;
-    const a = new THREE.Vector3(), b = new THREE.Vector3(), c = new THREE.Vector3();
-    const keys = new Array(n);
-    for (let i = 0; i < n; i += 3) {
-      a.fromBufferAttribute(p, i); b.fromBufferAttribute(p, i + 1); c.fromBufferAttribute(p, i + 2);
-      c.sub(b); a.sub(b);
-      c.cross(a);
-      for (let k = 0; k < 3; k++) {
-        const kk = (keys[i + k] = key(i + k));
-        const v = acc.get(kk) || acc.set(kk, new THREE.Vector3()).get(kk);
-        v.add(c);
-      }
+    const faces = n / 3;
+    const fn = new Float32Array(faces * 3);
+    const a = new THREE.Vector3();
+    const b = new THREE.Vector3();
+    const c = new THREE.Vector3();
+    for (let f = 0; f < faces; f++) {
+      a.fromBufferAttribute(p, f * 3);
+      b.fromBufferAttribute(p, f * 3 + 1);
+      c.fromBufferAttribute(p, f * 3 + 2);
+      c.sub(b);
+      a.sub(b);
+      c.cross(a).normalize();
+      fn[f * 3] = c.x;
+      fn[f * 3 + 1] = c.y;
+      fn[f * 3 + 2] = c.z;
     }
+    const groups = new Map();
+    const keys = new Array(n);
+    for (let i = 0; i < n; i++) {
+      const k = `${Math.round(p.getX(i) * 8e3)},${Math.round(p.getY(i) * 8e3)},${Math.round(p.getZ(i) * 8e3)}`;
+      keys[i] = k;
+      let arr = groups.get(k);
+      if (!arr) groups.set(k, (arr = []));
+      arr.push(i);
+    }
+    const lim = Math.cos((breakAngle * PI) / 180);
     const nor = new Float32Array(n * 3);
     for (let i = 0; i < n; i++) {
-      const v = acc.get(keys[i]).clone().normalize();
-      nor[i * 3] = v.x; nor[i * 3 + 1] = v.y; nor[i * 3 + 2] = v.z;
+      const f = (i / 3) | 0;
+      let nx = 0;
+      let ny = 0;
+      let nz = 0;
+      for (const j of groups.get(keys[i])) {
+        const o = (j / 3) | 0;
+        const dot = fn[f * 3] * fn[o * 3] + fn[f * 3 + 1] * fn[o * 3 + 1] + fn[f * 3 + 2] * fn[o * 3 + 2];
+        if (dot < lim) continue;
+        nx += fn[o * 3];
+        ny += fn[o * 3 + 1];
+        nz += fn[o * 3 + 2];
+      }
+      const L = Math.hypot(nx, ny, nz) || 1;
+      nor[i * 3] = nx / L;
+      nor[i * 3 + 1] = ny / L;
+      nor[i * 3 + 2] = nz / L;
     }
     g.setAttribute('normal', new THREE.BufferAttribute(nor, 3));
   }
@@ -199,7 +275,7 @@ export function buildDrone(THREE, addons = {}) {
     x.putImageData(img, 0, 0);
     const t = new THREE.CanvasTexture(c);
     t.wrapS = t.wrapT = THREE.RepeatWrapping;
-    t.repeat.set(4, 4);
+    t.repeat.set(7, 7);
     return t;
   })();
 
@@ -291,26 +367,31 @@ export function buildDrone(THREE, addons = {}) {
   /* -------------------------------------------------------------- materials */
 
   const M = {
+    // semi-matte moulded shell
     shell: new THREE.MeshPhysicalMaterial({
-      color: 0xd8d4cb, roughness: 0.5, metalness: 0, clearcoat: 0.45, clearcoatRoughness: 0.35,
-      roughnessMap: grainTex, bumpMap: grainTex, bumpScale: 0.35,
+      color: 0xd2cec5, roughness: 0.42, metalness: 0, clearcoat: 0.28, clearcoatRoughness: 0.2,
+      roughnessMap: grainTex, bumpMap: grainTex, bumpScale: 0.3,
     }),
+    // battery hatch, a touch greyer and flatter than the shell
     panel: new THREE.MeshPhysicalMaterial({
-      color: 0xb4b2ad, roughness: 0.55, metalness: 0, clearcoat: 0.3, clearcoatRoughness: 0.4,
-      roughnessMap: grainTex, bumpMap: grainTex, bumpScale: 0.35,
+      color: 0xbfbcb5, roughness: 0.52, metalness: 0, clearcoat: 0.18, clearcoatRoughness: 0.35,
+      roughnessMap: grainTex, bumpMap: grainTex, bumpScale: 0.25,
     }),
-    graphite: new THREE.MeshStandardMaterial({ color: 0x2a2c31, roughness: 0.5, metalness: 0.35 }),
-    seam: new THREE.MeshStandardMaterial({ color: 0x131417, roughness: 0.7, metalness: 0.1 }),
-    motor: new THREE.MeshStandardMaterial({ color: 0x1f2125, roughness: 0.34, metalness: 0.7 }),
-    ring: new THREE.MeshStandardMaterial({ color: 0x7b7e84, roughness: 0.28, metalness: 0.95 }),
+    // chassis: rougher, slightly metallic composite
+    graphite: new THREE.MeshStandardMaterial({ color: 0x2c2e33, roughness: 0.62, metalness: 0.2 }),
+    // recessed panel gaps and grooves: no shine at all
+    seam: new THREE.MeshStandardMaterial({ color: 0x0c0d0f, roughness: 0.88, metalness: 0 }),
+    // anodised motor housings: tight specular
+    motor: new THREE.MeshStandardMaterial({ color: 0x232529, roughness: 0.25, metalness: 0.9 }),
+    ring: new THREE.MeshStandardMaterial({ color: 0x8a8d93, roughness: 0.18, metalness: 1 }),
     glass: new THREE.MeshPhysicalMaterial({
       color: 0x06070b, roughness: 0.05, metalness: 0.5, clearcoat: 1, clearcoatRoughness: 0.02, envMapIntensity: 1.4,
     }),
     visor: new THREE.MeshPhysicalMaterial({
-      color: 0x04050a, roughness: 0.2, metalness: 0, clearcoat: 0.4, clearcoatRoughness: 0.2,
-      specularIntensity: 0.35, envMapIntensity: 0.3,
+      color: 0x04050a, roughness: 0.18, metalness: 0, clearcoat: 0.5, clearcoatRoughness: 0.15,
+      specularIntensity: 0.3, envMapIntensity: 0.3,
     }),
-    rubber: new THREE.MeshStandardMaterial({ color: 0x141517, roughness: 0.92, metalness: 0 }),
+    rubber: new THREE.MeshStandardMaterial({ color: 0x141517, roughness: 0.94, metalness: 0 }),
     led: new THREE.MeshStandardMaterial({
       color: 0x331408, emissive: 0xff6b35, emissiveIntensity: 1.2, roughness: 0.4, metalness: 0,
     }),
@@ -318,17 +399,17 @@ export function buildDrone(THREE, addons = {}) {
       color: 0xdddddd, emissive: 0xffffff, emissiveIntensity: 1.6, roughness: 0.4, metalness: 0,
     }),
     ember: new THREE.MeshStandardMaterial({
-      color: 0x331408, emissive: 0xff6b35, emissiveIntensity: 0.45, roughness: 0.35, metalness: 0.2,
+      color: 0x2e1207, emissive: 0xff6b35, emissiveIntensity: 0.5, roughness: 0.35, metalness: 0.2,
     }),
     decal: new THREE.MeshStandardMaterial({
       map: wordTex, transparent: true, roughness: 0.6, metalness: 0, depthWrite: false,
       polygonOffset: true, polygonOffsetFactor: -4, polygonOffsetUnits: -4,
     }),
     lens: new THREE.MeshPhysicalMaterial({
-      map: lensTex, emissiveMap: lensTex, emissive: 0xffffff, emissiveIntensity: 0.5, color: 0xffffff, roughness: 0.06, metalness: 0.15, clearcoat: 1, clearcoatRoughness: 0.02,
-      ior: 1.8, envMapIntensity: 1.8,
+      map: lensTex, emissiveMap: lensTex, emissive: 0xffffff, emissiveIntensity: 0.5, color: 0xffffff,
+      roughness: 0.06, metalness: 0.15, clearcoat: 1, clearcoatRoughness: 0.02, ior: 1.8, envMapIntensity: 1.8,
     }),
-    camBody: new THREE.MeshStandardMaterial({ color: 0x1a1b1f, roughness: 0.38, metalness: 0.55 }),
+    camBody: new THREE.MeshStandardMaterial({ color: 0x1a1b1f, roughness: 0.32, metalness: 0.6 }),
     blade: new THREE.MeshPhysicalMaterial({
       color: 0xffffff, vertexColors: true, roughness: 0.4, metalness: 0.2, clearcoat: 0.35,
       clearcoatRoughness: 0.4, side: THREE.DoubleSide, transparent: true,
@@ -350,73 +431,105 @@ export function buildDrone(THREE, addons = {}) {
 
   /* ------------------------------------------------------------------- body */
 
-  // Light shell, dark belly, thin dark gasket line between them.
-  add('shell', put(slab(1.0, 1.25, 0.26, 0.075, 3, TAPER), 0, 0.04, 0));
-  // upper cap layer with its own parting line, then the raised battery spine
-  add('seam', put(slab(0.95, 1.17, 0.03, 0.012, 3, TAPER), 0, 0.052, 0, 0.07));
-  add('shell', put(slab(0.92, 1.13, 0.17, 0.065, 3, TAPER), 0, 0.13, 0, 0.07));
-  add('graphite', put(slab(0.9, 1.16, 0.12, 0.045, 3, TAPER), 0, -0.11, 0));
-  add('seam', put(slab(0.94, 1.19, 0.04, 0.014, 3, TAPER), 0, -0.07, 0));
+  const BEV = 0.018;       // tight chamfer on the main shell volume
+  const PB = 0.016;        // chamfer on deck / belly plates
+  const GAP = 0.012;       // constant recessed panel-gap width
+  const DECK_IN = 0.034;   // deck inset from the body edge, forms a crisp ledge
 
-  // Rear spine / battery cover with its own groove.
-  add('seam', put(slab(0.62, 0.74, 0.03, 0.012, 3.2), 0, 0.22, -0.14, 0.1));
-  add('panel', put(slab(0.58, 0.7, 0.13, 0.05, 3.2), 0, 0.265, -0.14, 0.1));
-  add('seam', put(new THREE.BoxGeometry(0.22, 0.014, 0.014), 0, 0.29, -0.5, 0.1));
+  // Main shell volume, split by a real horizontal panel groove: the dark core
+  // shows through a constant-width gap, and the two chamfers either side of it
+  // each catch a narrow highlight that runs the length of the body.
+  add('shell', put(slab(1.0, 1.25, 0.14, BEV, 3, TAPER, 76), 0, 0.1, 0));
+  add('seam', put(slab(0.958, 1.208, 0.09, 0.01, 3, TAPER, 64), 0, 0.024, 0));
+  add('shell', put(slab(1.0, 1.25, 0.108, BEV, 3, TAPER, 76), 0, -0.036, 0));
+  // recessed parting gasket at the chassis joint
+  add('seam', put(slab(0.952, 1.202, 0.05, 0.012, 3, TAPER, 64), 0, -0.088, 0));
+
+  // Top deck: a dark sub-deck with three plates over it. The constant gaps
+  // between plates are real openings, so each panel line is a true recess.
+  const deckPts = outline(0.5 - DECK_IN - PB, 0.625 - DECK_IN - PB, 3, TAPER, 72);
+  add('seam', put(slab(2 * (0.5 - DECK_IN) + 0.012, 2 * (0.625 - DECK_IN) + 0.012, 0.05, 0.01, 3, TAPER, 64), 0, 0.145, 0));
+  const plateBase = 0.172;
+  // dark nose plate: the heading signature, readable from any angle
+  add('graphite', put(plate(clipZ(deckPts, 0.2 + PB, 1), 0.055, PB), 0, plateBase + 0.0275, 0));
+  // centre plate carrying the wordmark
+  add('shell', put(plate(clipZ(deckPts, -0.3 + PB, 0.188 - PB), 0.085, PB), 0, plateBase + 0.0425, 0));
+  // raised battery hatch with a grip bar
+  add('panel', put(plate(clipZ(deckPts, -1, -0.312 - PB), 0.128, PB), 0, plateBase + 0.064, 0));
+  add('seam', put(slab(0.26, 0.03, 0.016, 0.005, 6, 0, 20), 0, 0.3015, -0.49));
+  // Gap fillers raise the floor of each panel line so the groove is a constant
+  // 12mm wide and 12mm deep with dark walls, instead of a deep slot that
+  // catches the key light and disappears.
+  const gapPts = outline(0.5 - DECK_IN - 0.003, 0.625 - DECK_IN - 0.003, 3, TAPER, 72);
+  add('seam', put(plate(clipZ(gapPts, 0.188 + 0.003, 0.2 - 0.003), 0.043, 0.003), 0, 0.1935, 0));
+  add('seam', put(plate(clipZ(gapPts, -0.312 + 0.003, -0.3 - 0.003), 0.073, 0.003), 0, 0.2085, 0));
+
+  // Belly: same construction, so the panel lines read from below too.
+  add('seam', put(slab(0.912, 1.172, 0.06, 0.012, 3, TAPER, 64), 0, -0.108, 0));
+  const bellyPts = outline(0.45 - 0.014, 0.572 - 0.014, 3, TAPER, 64);
+  const bellyY = -0.1605;
+  add('graphite', put(plate(clipZ(bellyPts, 0.194 + 0.014, 1), 0.055, 0.014), 0, bellyY, 0));
+  add('graphite', put(plate(clipZ(bellyPts, -0.182 + 0.014, 0.182 - 0.014), 0.055, 0.014), 0, bellyY, 0));
+  add('graphite', put(plate(clipZ(bellyPts, -1, -0.194 - 0.014), 0.055, 0.014), 0, bellyY, 0));
 
   // Nose gimbal mount: damper plate and yaw motor.
-  add('graphite', put(slab(0.3, 0.24, 0.06, 0.02, 3), 0, -0.2, 0.46));
-  add('motor', put(new THREE.CylinderGeometry(0.055, 0.06, 0.07, 24), 0, -0.225, 0.5));
-  add('ring', put(new THREE.TorusGeometry(0.058, 0.006, 8, 28), 0, -0.2, 0.5, PI / 2));
+  add('graphite', put(slab(0.3, 0.24, 0.06, 0.016, 4, 0, 40), 0, -0.206, 0.46));
+  add('motor', put(crisp(new THREE.CylinderGeometry(0.055, 0.062, 0.07, 26)), 0, -0.232, 0.5));
+  add('ring', put(new THREE.TorusGeometry(0.06, 0.006, 8, 28), 0, -0.206, 0.5, PI / 2));
 
-  // Wordmark decal + ember dot.
+  // Wordmark decal, ember dot, and an ember bar on the nose plate.
   const word = new THREE.PlaneGeometry(0.72, 0.09);
   word.rotateX(-PI / 2);
-  add('decal', put(word, 0, 0.1915, 0.34, 0.07));
-  const dot = new THREE.CircleGeometry(0.011, 20);
+  add('decal', put(word, 0, 0.258, -0.02));
+  const dot = new THREE.CircleGeometry(0.012, 20);
   dot.rotateX(-PI / 2);
-  add('ember', put(dot, 0.43, 0.1918, 0.34, 0.07));
+  add('ember', put(dot, 0.42, 0.2582, -0.02));
+  add('ember', put(slab(0.17, 0.024, 0.012, 0.004, 6, 0, 20), 0, 0.2305, 0.44));
 
-  // Forward sensor windows (bezel + glossy glass), embedded into the curved nose.
-  const bezelGeo = new THREE.SphereGeometry(1, 20, 12);
+  // Forward sensor windows: machined rectangular housings with a recessed visor.
   for (const sx of [-1, 1]) {
-    const x = sx * 0.22;
+    const x = sx * 0.225;
     const sf = surface(x, 1);
-    const cx = x - Math.sin(sf.yaw) * 0.002;
-    add('seam', put(bezelGeo, cx, 0.07, sf.z - 0.004, 0, sf.yaw, 0, 0.1, 0.04, 0.022));
-    add('visor', put(bezelGeo, cx + Math.sin(sf.yaw) * 0.006, 0.07, sf.z + 0.006, 0, sf.yaw, 0, 0.068, 0.024, 0.018));
+    add('seam', put(slab(0.185, 0.06, 0.075, 0.012, 6, 0, 24), x, 0.045, sf.z - 0.026, 0, sf.yaw, 0));
+    add('visor', put(slab(0.15, 0.05, 0.056, 0.009, 6, 0, 24), x, 0.045, sf.z - 0.032, 0, sf.yaw, 0));
   }
 
   // Downward sensors on the belly.
   for (const sx of [-1, 1]) {
-    for (const [zz, sc] of [[0.3, 1], [0.12, 0.7]]) {
-      add('seam', put(bezelGeo, sx * 0.12, -0.17, zz, 0, 0, 0, 0.052 * sc, 0.012, 0.052 * sc));
-      add('visor', put(bezelGeo, sx * 0.12, -0.172, zz, 0, 0, 0, 0.036 * sc, 0.012, 0.036 * sc));
+    for (const [zz, sc] of [[0.3, 1], [0.1, 0.72]]) {
+      add('seam', put(slab(0.105 * sc, 0.08 * sc, 0.022, 0.006, 6, 0, 20), sx * 0.13, -0.186, zz));
+      add('visor', put(slab(0.075 * sc, 0.058 * sc, 0.016, 0.005, 6, 0, 20), sx * 0.13, -0.194, zz));
     }
   }
 
-  // Rear status LEDs (pulsed) set into the rear face.
+  // Rear status LEDs, recessed into their housings.
   for (const sx of [-1, 1]) {
-    const x = sx * 0.22;
+    const x = sx * 0.23;
     const sr = surface(x, -1);
-    add('seam', put(bezelGeo, x, 0.05, sr.z + 0.003, 0, sr.yaw, 0, 0.06, 0.02, 0.014));
-    add('led', put(bezelGeo, x, 0.05, sr.z - 0.002, 0, sr.yaw, 0, 0.046, 0.011, 0.014));
+    add('seam', put(slab(0.145, 0.05, 0.058, 0.011, 6, 0, 24), x, 0.1, sr.z + 0.028, 0, sr.yaw, 0));
+    add('led', put(slab(0.088, 0.032, 0.04, 0.007, 6, 0, 24), x, 0.1, sr.z + 0.016, 0, sr.yaw, 0));
   }
 
   /* ------------------------------------------------------------------- arms */
 
-  const motorLathe = new THREE.LatheGeometry(
+  // Motor housing: base flange chamfer, barrel, crown flange overhang, chamfered top.
+  const motorLathe = crisp(new THREE.LatheGeometry(
     [
-      [0.0, 0.0], [0.088, 0.0], [0.1, 0.012], [0.1, 0.075], [0.096, 0.1], [0.088, 0.125],
-      [0.07, 0.142], [0.048, 0.15], [0.03, 0.146], [0.0, 0.146],
+      [0.0, 0.0], [0.094, 0.0], [0.108, 0.014], [0.108, 0.032], [0.1, 0.042],
+      [0.1, 0.104], [0.116, 0.114], [0.116, 0.13], [0.09, 0.142],
+      [0.075, 0.149], [0.075, 0.152], [0.0, 0.152],
     ].map(([r, y]) => new THREE.Vector2(r, y)),
-    28
-  );
-  const ventGeo = new THREE.BoxGeometry(0.034, 0.03, 0.02);
+    30
+  ));
+  const ventGeo = slab(0.024, 0.03, 0.05, 0.005, 8, 0, 20);
+  const screwGeo = crisp(new THREE.CylinderGeometry(0.0075, 0.0075, 0.007, 12));
+  const knuckleGeo = crisp(new THREE.CylinderGeometry(0.086, 0.086, 0.094, 26));
+  const pinGeo = crisp(new THREE.CylinderGeometry(0.024, 0.024, 0.11, 16));
   const motorBaseY = 0.04;
-  const rotorY = motorBaseY + 0.148;
+  const rotorY = motorBaseY + 0.166;
 
   const motorDefs = [
-    // name, sx, sz, spin dir (+1 = counter-clockwise seen from above)
+    // sx, sz, spin dir (+1 = counter-clockwise seen from above)
     { sx: 1, sz: 1, dir: -1 },
     { sx: -1, sz: 1, dir: 1 },
     { sx: 1, sz: -1, dir: 1 },
@@ -431,42 +544,57 @@ export function buildDrone(THREE, addons = {}) {
     const mp = P(d.sx * (front ? 0.98 : 1.0), 0.08, d.sz * (front ? 0.82 : 0.78));
     motorPos.push(mp);
 
-    // inner arm, knuckle, outer arm
-    add('shell', limb(shoulder, knuckle, 0.082, 0.07, 0.75));
-    add('shell', limb(knuckle, mp, 0.07, 0.06, 0.75));
-    add('graphite', put(new THREE.CylinderGeometry(0.092, 0.092, 0.092, 28), knuckle.x, knuckle.y, knuckle.z));
-    add('ring', put(new THREE.TorusGeometry(0.093, 0.008, 8, 32), knuckle.x, knuckle.y + 0.046, knuckle.z, PI / 2));
-    add('ring', put(new THREE.TorusGeometry(0.093, 0.008, 8, 32), knuckle.x, knuckle.y - 0.046, knuckle.z, PI / 2));
-    add('ring', put(new THREE.CylinderGeometry(0.026, 0.026, 0.108, 14), knuckle.x, knuckle.y, knuckle.z));
+    // Arms are chamfered beams, not tubes: the flat top face carries a long
+    // narrow highlight all the way out to the motor.
+    add('shell', beam(shoulder, knuckle, 0.152, 0.086, 0.016, 11));
+    add('shell', beam(knuckle, mp, 0.126, 0.076, 0.015, 11));
+    // fold hinge knuckle with a through pin
+    add('graphite', put(knuckleGeo, knuckle.x, knuckle.y, knuckle.z));
+    add('ring', put(new THREE.TorusGeometry(0.0872, 0.0065, 8, 30), knuckle.x, knuckle.y + 0.047, knuckle.z, PI / 2));
+    add('ring', put(new THREE.TorusGeometry(0.0872, 0.0065, 8, 30), knuckle.x, knuckle.y - 0.047, knuckle.z, PI / 2));
+    add('ring', put(pinGeo, knuckle.x, knuckle.y, knuckle.z));
 
-    // motor housing: lathe, ring detail, vents
-    add('motor', put(motorLathe, mp.x, motorBaseY, mp.z, 0, 0, 0, 1.14, 1.0, 1.14));
-    add('ring', put(new THREE.TorusGeometry(0.114, 0.009, 8, 36), mp.x, motorBaseY + 0.088, mp.z, PI / 2));
-    for (let k = 0; k < 10; k++) {
-      const a = (k / 10) * PI * 2;
-      add('seam', put(ventGeo, mp.x + Math.sin(a) * 0.111, motorBaseY + 0.04, mp.z + Math.cos(a) * 0.111, 0, a, 0));
+    // motor housing, crown ring, milled vent slots, cap screws
+    add('motor', put(motorLathe, mp.x, motorBaseY, mp.z));
+    add('ring', put(new THREE.TorusGeometry(0.1165, 0.0055, 8, 36), mp.x, motorBaseY + 0.122, mp.z, PI / 2));
+    for (let k = 0; k < 12; k++) {
+      const a = (k / 12) * PI * 2;
+      add('seam', put(ventGeo, mp.x + Math.sin(a) * 0.09, motorBaseY + 0.072, mp.z + Math.cos(a) * 0.09, 0, a, 0));
+    }
+    for (let k = 0; k < 6; k++) {
+      const a = (k / 6) * PI * 2 + 0.26;
+      add('ring', put(screwGeo, mp.x + Math.sin(a) * 0.06, motorBaseY + 0.1525, mp.z + Math.cos(a) * 0.06));
     }
     // front arm tip LEDs
     if (front) {
-      add('ledWhite', put(bezelGeo, mp.x + d.sx * 0.113, motorBaseY + 0.04, mp.z, 0, 0, 0, 0.014, 0.014, 0.014));
+      add('ledWhite', put(slab(0.03, 0.024, 0.014, 0.004, 6, 0, 16), mp.x + d.sx * 0.104, motorBaseY + 0.058, mp.z, 0, (d.sx * PI) / 2, 0));
     }
   }
 
   /* ------------------------------------------------------------ landing feet */
 
-  const FOOT_Y = -0.42;
+  const FOOT_Y = -0.375;
   const legDefs = [
-    // hip, foot, thickness
-    [P(0.34, -0.13, -0.46), P(0.58, FOOT_Y + 0.04, -0.64), 0.042],
-    [P(-0.34, -0.13, -0.46), P(-0.58, FOOT_Y + 0.04, -0.64), 0.042],
-    [P(0.36, -0.13, 0.36), P(0.52, FOOT_Y + 0.036, 0.5), 0.036],
-    [P(-0.36, -0.13, 0.36), P(-0.52, FOOT_Y + 0.036, 0.5), 0.036],
+    // hip, foot, strut width, strut thickness
+    [P(0.34, -0.15, -0.44), P(0.555, FOOT_Y + 0.045, -0.6), 0.062, 0.05],
+    [P(-0.34, -0.15, -0.44), P(-0.555, FOOT_Y + 0.045, -0.6), 0.062, 0.05],
+    [P(0.355, -0.15, 0.33), P(0.5, FOOT_Y + 0.042, 0.45), 0.054, 0.044],
+    [P(-0.355, -0.15, 0.33), P(-0.5, FOOT_Y + 0.042, 0.45), 0.054, 0.044],
   ];
-  const ballGeo = new THREE.SphereGeometry(1, 16, 10);
-  for (const [hip, foot, r] of legDefs) {
-    add('graphite', limb(hip, foot, r * 1.25, r, 0.85, 12));
-    add('graphite', put(ballGeo, hip.x, hip.y, hip.z, 0, 0, 0, r * 1.7, r * 1.7, r * 1.7));
-    add('rubber', put(ballGeo, foot.x, foot.y, foot.z, 0, 0, 0, r * 1.5, r * 1.15, r * 1.5));
+  const padGeo = crisp(new THREE.CylinderGeometry(0.055, 0.05, 0.026, 20));
+  const rubberGeo = crisp(new THREE.CylinderGeometry(0.05, 0.046, 0.02, 20));
+  const _ax = new THREE.Vector3();
+  const _side = new THREE.Vector3();
+  for (const [hip, foot, w, t] of legDefs) {
+    // machined strut with a visible hinge knuckle and through pin at the hip
+    add('graphite', beam(hip, foot, w, t, 0.014));
+    _ax.subVectors(foot, hip).normalize();
+    _side.set(0, 1, 0).cross(_ax).normalize().multiplyScalar(w * 0.52);
+    add('graphite', limb(hip.clone().sub(_side), hip.clone().add(_side), w * 0.66, w * 0.66, 1, 16));
+    const pin = _side.clone().multiplyScalar(1.7);
+    add('ring', limb(hip.clone().sub(pin), hip.clone().add(pin), 0.013, 0.013, 1, 12));
+    add('graphite', put(padGeo, foot.x, foot.y - 0.012, foot.z));
+    add('rubber', put(rubberGeo, foot.x, foot.y - 0.032, foot.z));
   }
 
   flush(group, bucket);
@@ -484,12 +612,13 @@ export function buildDrone(THREE, addons = {}) {
   gimbalYaw.add(gimbal);
 
   const gb = {};
+  const yokeCorner = slab(0.052, 0.052, 0.052, 0.012, 5, 0, 20);
   // Yoke: top bridge, side arms, pitch motors
   const bridgeY = 0.078;
   add2(gb, 'graphite', limb(P(-0.098, bridgeY, 0), P(0.098, bridgeY, 0), 0.02, 0.02, 1, 12));
   for (const sx of [-1, 1]) {
     add2(gb, 'graphite', limb(P(sx * 0.098, bridgeY, 0), P(sx * 0.098, 0.0, 0), 0.02, 0.024, 1, 12));
-    add2(gb, 'graphite', put(ballGeo, sx * 0.098, bridgeY, 0, 0, 0, 0, 0.03, 0.03, 0.03));
+    add2(gb, 'graphite', put(yokeCorner, sx * 0.098, bridgeY, 0));
     add2(gb, 'motor', put(new THREE.CylinderGeometry(0.036, 0.036, 0.03, 20), sx * 0.092, 0, 0, 0, 0, PI / 2));
     add2(gb, 'ring', put(new THREE.TorusGeometry(0.036, 0.004, 8, 24), sx * 0.108, 0, 0, 0, PI / 2, 0));
   }
@@ -642,7 +771,7 @@ export function buildDrone(THREE, addons = {}) {
   }
 
   function setLedPulse(t) {
-    ledMat.emissiveIntensity = 0.55 + 1.05 * (0.5 + 0.5 * Math.sin(t * 2.6));
+    ledMat.emissiveIntensity = 0.4 + 0.85 * (0.5 + 0.5 * Math.sin(t * 2.6));
   }
 
   return { group, rotors, blurDiscs, gimbal, gimbalYaw, update, setLedPulse };

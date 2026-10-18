@@ -24,7 +24,7 @@
   <label><input id="anim" type="checkbox"> animate gimbal / LEDs</label>
   <div>
     <button data-v="front">front</button><button data-v="three">3/4</button><button data-v="side">side</button>
-    <button data-v="top">top</button><button data-v="rear">rear</button><button data-v="gimbal">gimbal</button>
+    <button data-v="top">top</button><button data-v="rear">rear</button><button data-v="below">below</button><button data-v="gimbal">gimbal</button><button data-v="seam">seam</button>
   </div>
 </div>
 <script type="module">
@@ -66,7 +66,7 @@ scene.add(key);
 
 const ground = new THREE.Mesh(new THREE.PlaneGeometry(12, 12), new THREE.ShadowMaterial({ opacity: 0.25 }));
 ground.rotation.x = -Math.PI / 2;
-ground.position.y = -0.42;
+ground.position.y = -0.375;
 ground.receiveShadow = true;
 scene.add(ground);
 
@@ -76,12 +76,14 @@ window.drone = drone; window.THREE = THREE; window.camera = camera; window.contr
 
 const $ = (id) => document.getElementById(id);
 const views = {
-  front: [0, 0.25, 5.6], three: [3.6, 2.2, 4.6], side: [5.6, 0.2, 0],
-  top: [0.001, 6.2, 0.01], rear: [0, 0.6, -5.6], gimbal: [0.9, -0.15, 1.9],
+  front: [0, 0.25, 5.6], three: [2.6, 1.5, 3.3], side: [4.2, 0.3, 0],
+  top: [0.001, 6.2, 0.01], rear: [1.2, 1.6, -3.6], below: [1.1, -2.6, 2.2],
+  gimbal: [0.5, -0.15, 1.6], seam: [0.35, 0.95, 0.95],
 };
 function setView(n) {
   camera.position.set(...views[n]);
-  controls.target.set(0, n === 'gimbal' ? -0.3 : -0.05, n === 'gimbal' ? 0.5 : 0);
+  const t = { gimbal: [0, -0.2, 0.55], seam: [0, 0.22, 0.1], below: [0, -0.15, 0.1] }[n] || [0, -0.05, 0];
+  controls.target.set(t[0], t[1], t[2]);
   controls.update();
 }
 document.querySelectorAll('button[data-v]').forEach((b) => b.onclick = () => setView(b.dataset.v));
