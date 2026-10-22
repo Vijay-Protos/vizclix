@@ -13,6 +13,10 @@ const osReduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
 const reduce = !/[?&]motion\b/.test(location.search) && (pref === 'off' || (osReduce && pref !== 'on'));
 if (reduce) root.classList.add('reduced');
 const small = innerWidth < 860 || (navigator.deviceMemory && navigator.deviceMemory <= 4);
+// Lenis smooths wheel and keyboard scrolling, so the timeline and the docked drone move as one
+// with the page. It is driven from the main loop (autoRaf off); touch keeps native scrolling.
+let lenis = null;
+if (!reduce) import('../vendor/lenis/lenis.mjs').then(({ default: Lenis }) => { lenis = new Lenis({ autoRaf: false, lerp: 0.1 }); }).catch(() => { /* native scrolling */ });
 
 /* ---------- loader: counts real milestones ---------- */
 const loader = $('#loader'), loaderN = $('#loader-n'), loaderBar = $('#loader-bar');
@@ -28,9 +32,11 @@ function loaderTick() {
   if (shown >= 100 && performance.now() > minShow) return finishLoader();
   if (!loaderDone) requestAnimationFrame(loaderTick);
 }
+let introAt = 0;
 function finishLoader() {
   if (loaderDone) return;
   loaderDone = true;
+  introAt = performance.now() + 250;
   loader.classList.add('done');
   setTimeout(() => root.classList.add('ready'), 150);
 }
@@ -69,7 +75,8 @@ const bar = $('#bar'), barSection = $('#bar-section'), clock = $('#clock');
 function tickClock() {
   clock.textContent = 'Local ' + new Date().toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }).toLowerCase();
 }
-tickClock(); setInterval(tickClock, 20000);
+// with motion on, the clock tells the shoot day instead (updateDom); without it, the local time
+if (reduce) { tickClock(); setInterval(tickClock, 20000); }
 
 // route rail: one waypoint per section after the flight, built from the sections themselves
 const route = $('#route');
@@ -102,6 +109,7 @@ function setMenu(open) {
   menuBtn.setAttribute('aria-expanded', String(open));
   menuBtn.firstElementChild.textContent = open ? 'close' : 'menu';
   document.body.style.overflow = open ? 'hidden' : '';
+  if (lenis) open ? lenis.stop() : lenis.start();
   if (open) { lastFocus = document.activeElement; $('a', menu).focus(); } else if (lastFocus) lastFocus.focus();
 }
 menuBtn.addEventListener('click', () => setMenu(!menu.classList.contains('open')));
@@ -160,7 +168,8 @@ document.addEventListener('click', (e) => {
   e.preventDefault();
   const top = t.getBoundingClientRect().top + scrollY - (a.getAttribute('href') === '#top' ? 0 : 0);
   const far = Math.abs(top - scrollY) > innerHeight * 3;
-  scrollTo({ top, behavior: reduce || far ? 'auto' : 'smooth' });
+  if (lenis) lenis.scrollTo(top, { immediate: far });
+  else scrollTo({ top, behavior: reduce || far ? 'auto' : 'smooth' });
   try { history.replaceState(null, '', a.getAttribute('href')); } catch (_) { /* sandboxed frames may refuse */ }
 });
 
@@ -187,7 +196,34 @@ function layout() {
     const prev = stations[stations.length - 1];
     stations.push([prev ? Math.max(y, prev[0] + 1) : y, T]);
   }
+  // the shoot day: each section's hour takes over as its top reaches 40% of the screen. Hours run
+  // on through the night (19 → 29 = 05:00), so the page never interpolates backwards in time.
+  // The night between the flight and the morning shoot passes as a time-lapse in the last half
+  // screen before Work, not spread across the whole flight.
+  let last = 0;
+  hours = [];
+  for (const s of $$('[data-hour]')) {
+    let h = +s.dataset.hour;
+    while (h < last) h += 24;
+    const y = Math.max(0, s.offsetTop - vh * 0.4);
+    if (h - last > 6) hours.push([y - vh * 0.5, last + 0.3]);
+    hours.push([y, h]);
+    last = h;
+  }
   measureEscort();
+}
+let hours = [];
+function hourAt(y) {
+  let i = 0;
+  while (i < hours.length - 2 && y > hours[i + 1][0]) i++;
+  const [y0, h0] = hours[i], [y1, h1] = hours[i + 1];
+  return (h0 + (h1 - h0) * clamp((y - y0) / Math.max(1, y1 - y0))) % 24;
+}
+const HOUR_NAMES = [[0, 'Night'], [4.5, 'Before Dawn'], [5.4, 'Blue Hour'], [6.2, 'Sunrise'], [7.5, 'Morning'], [10.5, 'Midday'], [14.5, 'Afternoon'], [16.6, 'Golden Hour'], [18.2, 'Dusk'], [19.2, 'Night']];
+function hourLabel(h) {
+  const name = HOUR_NAMES.filter(([at]) => h >= at).pop()[1];
+  const m = Math.floor(h * 60) % 1440;
+  return `Light ${String(Math.floor(m / 60)).padStart(2, '0')}:${String(m % 60).padStart(2, '0')} · ${name}`;
 }
 
 function timelineT(y) {
@@ -202,37 +238,66 @@ function timelineT(y) {
   return stations[stations.length - 1][1];
 }
 
-/* ---------- the escort: the drone parks beside each heading and call to action ----------
-   Docks come from the real layout. For each anchor, the closest spot beside it where a drone-sized
-   footprint touches no text, image or control. The drone rests there in page space, so it travels
-   with its heading as the page scrolls; it flies to the next dock as that one comes up the screen
-   and slips out to the side when the one it holds leaves. Where it cannot sit beside an anchor
-   without covering copy (the drone is always behind the page), it flies past instead. */
+/* ---------- the escort: the drone flies the page in front of it ----------
+   After the flight the canvas moves in front of the page (html.front) and the sky becomes a CSS
+   layer behind it, so the drone can never be hidden by content. Docks come from the real layout:
+   for each heading and call to action, the nearest spot beside it that a drone-sized footprint
+   can take without covering copy. Between docks it never leaves the screen: it loiters in the
+   clearest space in view. Every move is a curved path (cubic Hermite from its current velocity,
+   so a new target never jolts it), shaped by the section's own move from "Six Moves": a glide
+   arcs over, a reveal rises from below, an orbit loops once before settling. */
 const reticle = $('#reticle');
-let docks = [], droneW = 180;
+let docks = [], obstacles = [], droneW = 180, feedW = 225, feedH = 152, barH = 84;
+
+// the drone's camera feed: one panel, re-pointed at whatever the current stop is filming
+const feedEl = $('#feed'), feedVid = $('video', feedEl), feedImg = $('img', feedEl);
+const feedLabel = $('.feed-label', feedEl), feedTc = $('.feed-tc', feedEl);
+function showFeed(f) {
+  feedEl.classList.toggle('on', !!f);
+  if (!f) { feedVid.pause(); return; }
+  const kind = f.src === 'plan' ? 'plan' : /\.mp4$/.test(f.src) ? 'video' : 'image';
+  feedEl.dataset.kind = kind;
+  feedLabel.textContent = 'Feed — ' + f.label + (kind === 'plan' ? '' : ' · Stock');
+  if (kind === 'video') {
+    if (!feedVid.src.endsWith(f.src)) feedVid.src = f.src;
+    feedVid.play().catch(() => { /* autoplay refused: the still frame stays */ });
+  } else {
+    feedVid.pause();
+    if (kind === 'image') feedImg.src = f.src;
+  }
+}
 function measureEscort() {
   const sy = scrollY, vw = innerWidth;
   const phone = vw < 860;
+  barH = bar.offsetHeight;
   droneW = phone ? Math.min(150, vw * 0.36) : clamp(vw * 0.13, 150, 230);
   const dw = droneW, dh = droneW * 0.46;
   const edge = phone ? 10 : 28;
   const obs = [];
-  const add = (r) => { if (r.width && r.height) obs.push([r.left - 12, r.top + sy - 12, r.right + 12, r.bottom + sy + 12]); };
+  const add = (r, kind) => { if (r.width && r.height) obs.push([r.left - 12, r.top + sy - 12, r.right + 12, r.bottom + sy + 12, kind]); };
   const range = document.createRange();
   const rects = (el) => { range.selectNodeContents(el); return [...range.getClientRects()]; };
   for (const s of $$('.sec, .foot')) {
-    const tw = document.createTreeWalker(s, NodeFilter.SHOW_TEXT, { acceptNode: (n) => (n.nodeValue.trim() ? 1 : 2) });
-    for (let n; (n = tw.nextNode());) rects(n).forEach(add);
-    $$('img,svg,.card,.slot,.cta-solid,.chip span,.cities li,input,select,textarea', s).forEach((el) => add(el.getBoundingClientRect()));
+    // a phone's single column has no margin, but the outlined section word above each heading is
+    // pure decoration: there the drone and its feed may sit over it
+    const skip = (n) => !n.nodeValue.trim() || (phone && n.parentElement.closest('.bigword'));
+    const tw = document.createTreeWalker(s, NodeFilter.SHOW_TEXT, { acceptNode: (n) => (skip(n) ? 2 : 1) });
+    for (let n; (n = tw.nextNode());) rects(n).forEach((r) => add(r, 3));
+    $$('img,svg,.card,.slot,.cta-solid,.chip span,.cities li,input,select,textarea', s).forEach((el) => add(el.getBoundingClientRect(), 1));
   }
   // the case-study image is sticky, so it can be anywhere down its column
   const shot = $('.study-shot');
   if (shot && getComputedStyle(shot).position === 'sticky') {
     const a = shot.getBoundingClientRect(), b = shot.parentElement.getBoundingClientRect();
-    add({ left: a.left, right: a.right, top: b.top, bottom: b.bottom, width: 1, height: 1 });
+    add({ left: a.left, right: a.right, top: b.top, bottom: b.bottom, width: 1, height: 1 }, 1);
   }
-  const free = (x, y) => {
-    const l = x - dw / 2, r = x + dw / 2, t = y - dh / 2, b = y + dh / 2;
+  obstacles = obs.sort((a, b) => a[1] - b[1]);
+  // a footprint is the drone, plus (when it carries one) its camera feed hanging beneath it
+  feedW = Math.round(dw * (phone ? 1.1 : 1.25)); feedH = Math.round(feedW * 9 / 16) + 26;
+  const free = (x, y, feed) => {
+    // the feed is a solid panel in front of the page, so it keeps a wider berth than the drone
+    const w = feed ? Math.max(dw, feedW) + 16 : dw;
+    const l = x - w / 2, r = x + w / 2, t = y - dh / 2, b = y + dh / 2 + (feed ? 8 + feedH + 8 : 0);
     if (l < edge || r > vw - edge) return false;
     for (const o of obs) if (o[0] < r && o[2] > l && o[1] < b && o[3] > t) return false;
     return true;
@@ -249,58 +314,145 @@ function measureEscort() {
     }
     for (let k = 0; k < 10; k++) {
       const x = A[0] + dw / 2 + k * dw * 0.3;
-      cands.push([x, A[1] - 20 - dh / 2], [x, A[3] + 20 + dh / 2]);
+      // above it (drone alone, and drone with its feed stacked beneath), and below it
+      cands.push([x, A[1] - 20 - dh / 2], [x, A[1] - 20 - dh / 2 - 8 - feedH], [x, A[3] + 20 + dh / 2]);
     }
     // nearest free spot to the anchor's own text; the right-hand side reads best, so it wins ties
-    let best = null, bs = vw * 0.3;
-    for (const [x, y] of cands) {
-      if (!free(x, y)) continue;
-      const gx = Math.max(A[0] - (x + dw / 2), x - dw / 2 - A[2], 0);
-      const gy = Math.max(A[1] - (y + dh / 2), y - dh / 2 - A[3], 0);
-      const sc = gx + gy * 1.6 + (x < A[0] ? 60 : 0);
-      if (sc < bs) { bs = sc; best = [x, y]; }
-    }
-    const [x, y] = best || [(A[0] + A[2]) / 2, (A[1] + A[3]) / 2];
+    const pick = (feed) => {
+      let best = null, bs = vw * 0.3;
+      for (const [x, y] of cands) {
+        if (!free(x, y, feed)) continue;
+        if (feed && y - dh / 2 > A[3]) continue;                     // a feed never sits in the content below
+        const gx = Math.max(A[0] - (x + dw / 2), x - dw / 2 - A[2], 0);
+        const foot = y + dh / 2 + (feed ? 8 + feedH : 0);           // bottom of the whole footprint
+        const gy = Math.max(A[1] - foot, y - dh / 2 - A[3], 0);
+        const sc = gx + gy * 1.6 + (x < A[0] ? 60 : 0);
+        if (sc < bs) { bs = sc; best = [x, y]; }
+      }
+      return best;
+    };
+    // a section heading carries its camera feed if there is room for it; otherwise just the drone
+    const sec = el.closest('.sec');
+    const spec = el.matches('.h2') && sec.dataset.feed;
+    let best = spec && pick(true), feed = null;
+    if (best) { const [src, label] = spec.split('|'); feed = { src, label }; } else best = pick(false);
+    if (!best) return null;                                         // nowhere to stand: fly on by
+    const [x, y] = best;
     // face the anchor, turned three-quarters toward the reader so the camera reads
     const face = x > A[2] ? Math.PI * 1.5 + 0.6 : x < A[0] ? Math.PI / 2 - 0.6 : 0.3;
-    return { el, x, y, ok: !!best, face, side: x > vw / 2 ? 1 : -1, frame: A };
-  }).filter(Boolean);
+    const move = el.matches('.h2') ? sec.dataset.move || 'glide' : 'glide';
+    return { el, x, y, face, frame: A, feed, move };
+  }).filter(Boolean).sort((a, b) => a.y - b.y);
 }
 
-const E = { x: 0, y: 0, vx: 0, vy: 0, yaw: Math.PI * 1.5, on: null, init: false };
+// How much of a drone-sized footprint at (x, y) (page px) lies over content: text counts three
+// times an image. 0 means clear air.
+function cover(x, y) {
+  const dw = droneW, dh = droneW * 0.46, l = x - dw / 2, r = x + dw / 2, t = y - dh / 2, b = y + dh / 2;
+  let c = 0;
+  for (const o of obstacles) {
+    if (o[1] > b) break;
+    if (o[3] < t || o[0] > r || o[2] < l) continue;
+    c += o[4] * (Math.min(r, o[2]) - Math.max(l, o[0])) * (Math.min(b, o[3]) - Math.max(t, o[1]));
+  }
+  return c / (dw * dh);
+}
+// Between docks: the clearest spot on screen, held in screen space so it stays in view as the
+// page scrolls. It is kept until copy has properly slid under it, and for at least 0.8 s, so the
+// drone holds a position instead of chasing every line of text that scrolls past.
+// Where nothing in view is clear (often, on a phone's single column) it perches instead: smaller,
+// half tucked behind the right edge of the screen, peeking in until there is room again.
+const loiter = { sx: 0, sy: 0, at: -1, perch: false };
+function loiterSpot(y, nearX, nearY) {
+  const vw = innerWidth, dw = droneW, dh = droneW * 0.46;
+  if (loiter.at >= 0 && (E.t - loiter.at < 0.8 || (loiter.perch ? false : cover(loiter.sx, loiter.sy + y) < 0.3))) return loiter;
+  let best = null, bs = Infinity;
+  for (let gx = 0; gx <= 8; gx++) for (let gy = 0; gy <= 6; gy++) {
+    const sx = dw / 2 + 24 + (vw - dw - 48) * gx / 8, sy = vh * 0.2 + vh * 0.62 * gy / 6;
+    const s = cover(sx, sy + y) * 4000 + Math.hypot(sx - nearX, sy - nearY) * 0.6;
+    if (s < bs) { bs = s; best = [sx, sy]; }
+  }
+  const clear = cover(best[0], best[1] + y) < 0.06;
+  loiter.perch = !clear;
+  [loiter.sx, loiter.sy] = clear ? best : [vw + dw * 0.05, vh * 0.34];
+  loiter.at = E.t;
+  return loiter;
+}
+
+// a path's shape on top of the Hermite base: offsets in px, enveloped to vanish at both ends
+const MOVES = {
+  glide: (u, d) => [0, -Math.min(170, 40 + d * 0.28) * Math.sin(Math.PI * u)],
+  reveal: (u, d) => [0, Math.min(190, 60 + d * 0.3) * Math.sin(Math.PI * u)],
+  orbit: (u, d) => { const R = Math.min(110, 50 + d * 0.12), w = Math.sin(Math.PI * u); return [R * Math.sin(2 * Math.PI * u) * w, R * (Math.cos(2 * Math.PI * u) - 1) * w]; },
+};
+const E = { x: 0, y: 0, vx: 0, vy: 0, ax: 0, ay: 0, sy: 0, sv: 0, pb: 0, yaw: Math.PI * 1.5, pitch: 0, roll: 0, on: null, init: false, path: null, key: '', t: 0 };
 const wrapPI = (a) => Math.atan2(Math.sin(a), Math.cos(a));
 function escort(y, dt) {
   const vw = innerWidth;
-  // the dock in charge: the last one that has come up past 72% of the screen
+  E.t += dt;
+  // scroll speed: a path is planned in its target's own frame (page for a dock, screen for a
+  // loiter spot), so the drone's velocity has to be carried across when the frame changes
+  E.sv += ((y - E.sy) / Math.max(dt, 1e-3) - E.sv) * (1 - Math.exp(-dt * 12)); E.sy = y;
+  // the dock in charge: the last one that has come up past 88% of the screen, held until it
+  // nears the top fifth (the last dock, the form, is held for good). Starting that early gives
+  // the drone time to get there even when the reader is scrolling quickly.
   let i = -1;
-  for (let k = 0; k < docks.length && docks[k].y - y <= vh * 0.72; k++) i = k;
-  const d = docks[i];
-  const last = i === docks.length - 1;
-  const out = (side, row) => [side > 0 ? vw + droneW : -droneW, row];
-  let [tx, ty] = out(1, y + vh * 0.42);                 // before the first dock: waiting off to the side
-  let held = false;
-  if (d && d.ok && (last || d.y - y > vh * 0.16)) { tx = d.x; ty = d.y; held = true; }
-  else if (d) [tx, ty] = out(d.side, d.y);              // its dock is leaving, or has no clear spot
+  for (let k = 0; k < docks.length && docks[k].y - y <= vh * 0.88; k++) i = k;
+  const d = docks[i], last = i === docks.length - 1;
+  const held = !!d && (last || d.y - y > vh * 0.22);
+  E.pb += ((!held && loiter.perch ? 1 : 0) - E.pb) * (1 - Math.exp(-dt * 3));     // perch blend
+  let key, tx, ty, move = 'glide';
+  if (held) { key = 'd' + i; tx = d.x; ty = d.y; move = d.move; }
+  else { const s = loiterSpot(y, E.init ? E.x : vw * 0.75, E.init ? E.y - y : vh * 0.4); key = 'l' + s.sx.toFixed(0) + ',' + s.sy.toFixed(0); tx = s.sx; ty = s.sy + y; }
   const land = held && last ? smooth(clamp((vh * 0.66 - (d.y - y)) / (vh * 0.22))) : 0;
   ty += land * droneW * 0.06;
-  // a jump (menu, rail) would streak the drone across the page: re-enter from the side instead
-  if (!E.init || Math.abs(ty - E.y) > vh * 1.5) {
-    [E.x, E.y] = E.init ? out(d ? d.side : 1, ty) : [tx, ty];
-    E.vx = E.vy = 0; E.init = true;
+  if (!E.init) { E.x = vw + droneW; E.y = y + vh * 0.35; E.init = true; }
+  // a new target starts a new path from where the drone is and how it is already moving
+  const scr = key[0] === 'l';                                   // loiter spots live on screen
+  if (key !== E.key || !E.path) {
+    const x0 = E.x, y0 = scr ? E.y - y : E.y, ty0 = scr ? ty - y : ty;
+    const dist = Math.hypot(tx - x0, ty0 - y0);
+    // quicker legs while the page is moving fast, so it keeps up instead of trailing behind
+    const dur = clamp(0.55 + dist / 1100, 0.6, 1.9) / (1 + Math.abs(E.sv) / 1400);
+    // carried velocity, in the new frame, capped so a fast scroll never flings it out of view
+    let mx = E.vx * dur, my = (scr ? E.vy - E.sv : E.vy) * dur;
+    const m = Math.hypot(mx, my), cap = 120 + dist * 0.5;
+    if (m > cap) { mx *= cap / m; my *= cap / m; }
+    E.path = { x0, y0, mx, my, t0: E.t, dur, scr, move: scr ? 'glide' : move, dist };
+    E.key = key;
   }
-  // a critically damped spring in page space: arrives without overshoot, leaves without a jolt
-  const w = 3.6;
-  E.vx += (w * w * (tx - E.x) - 2 * w * E.vx) * dt; E.x += E.vx * dt;
-  E.vy += (w * w * (ty - E.y) - 2 * w * E.vy) * dt; E.y += E.vy * dt;
-  const move = clamp(Math.hypot(E.vx, E.vy) / 650);
+  const p = E.path;
+  if (p.scr) ty -= y;                                            // evaluate in the path's frame
+  const u = clamp((E.t - p.t0) / p.dur);
+  // cubic Hermite: leaves with the velocity it had, arrives at rest
+  const h10 = u * u * u - 2 * u * u + u, h01 = -2 * u * u * u + 3 * u * u, h00 = 1 - h01;
+  const [ox, oy] = MOVES[p.move](u, p.dist);
+  const idle = smooth(clamp((E.t - p.t0 - p.dur) / 0.8)) * (1 - land);      // hover once arrived
+  let nx = h00 * p.x0 + h10 * p.mx + h01 * tx + ox + Math.sin(E.t * 0.7) * 7 * idle;
+  let ny = h00 * p.y0 + h10 * p.my + h01 * ty + oy + Math.sin(E.t * 1.1) * 5 * idle + (p.scr ? y : 0);
+  // never out of view: whatever the path does, the drone stays inside the frame, clear of the bar
+  const dh = droneW * 0.46, top = barH + dh / 2 + 8;
+  nx = clamp(nx, droneW / 2 + 8, lerp(vw - droneW / 2 - 8, vw + droneW * 0.1, E.pb));
+  ny = clamp(ny - y, top, vh - dh / 2 - 12) + y;
+  const vx = (nx - E.x) / Math.max(dt, 1e-3), vy = (ny - E.y) / Math.max(dt, 1e-3);
+  // velocity is the drone's actual motion (page px/s); only the acceleration that tilts it is smoothed
+  const k = 1 - Math.exp(-dt * 6);
+  E.ax += ((vx - E.vx) / Math.max(dt, 1e-3) - E.ax) * k; E.ay += ((vy - E.vy) / Math.max(dt, 1e-3) - E.ay) * k;
+  E.vx = vx; E.vy = vy;
+  E.x = nx; E.y = ny;
+  // attitude: nose toward travel, settling to face the anchor; it tips into acceleration the way
+  // a quadcopter does, and banks through turns
+  const speed = Math.hypot(E.vx, E.vy), move01 = clamp(speed / 700);
   const travel = E.vx >= 0 ? Math.PI / 2 : Math.PI * 1.5;
-  let yawT = held ? d.face + wrapPI(travel - d.face) * move : travel;
-  yawT += wrapPI(0 - yawT) * land;                       // landed, it turns to face you
+  let yawT = held ? d.face + wrapPI(travel - d.face) * move01 : travel;
+  if (!held && move01 < 0.2) yawT = E.pb > 0.5 ? Math.PI * 1.5 + 0.35 : 0.35;   // loitering: looks at you; perched: peers in
+  yawT += wrapPI(0 - yawT) * land;                                         // landed: faces you
   E.yaw += wrapPI(yawT - E.yaw) * (1 - Math.exp(-dt * 3.2));
-  const fwd = E.vx * Math.sin(E.yaw), side = E.vx * Math.cos(E.yaw);
-  // reticle: frames the anchor once the drone has settled beside it
-  const settled = held && Math.hypot(tx - E.x, ty - E.y) < 40 && land < 0.5;
-  const on = settled ? d : null;
+  const fwdA = E.ax * Math.sin(E.yaw), sideA = E.ax * Math.cos(E.yaw);
+  E.pitch += (0.05 + clamp(fwdA / 2600, -1, 1) * 0.32 + clamp(-E.ay / 4000, -1, 1) * 0.06 - E.pitch) * (1 - Math.exp(-dt * 5));
+  E.roll += (-clamp(sideA / 2600, -1, 1) * 0.38 - clamp(E.vx * Math.cos(E.yaw) / 1600, -1, 1) * 0.12 - E.roll) * (1 - Math.exp(-dt * 5));
+  // reticle and feed: once the drone has settled at a dock
+  const on = held && u >= 1 && land < 0.5 ? d : null;
   if (on !== E.on) {
     E.on = on;
     if (on) {
@@ -308,12 +460,17 @@ function escort(y, dt) {
       Object.assign(reticle.style, { left: l - 16 + 'px', top: t - 12 + 'px', width: r - l + 32 + 'px', height: b - t + 24 + 'px' });
     }
     reticle.classList.toggle('on', !!on);
+    showFeed(on && on.feed);
+  }
+  if (on && on.feed) {
+    feedEl.style.transform = `translate(${(on.x - feedW / 2).toFixed(1)}px, ${(on.y - y + droneW * 0.23 + 8).toFixed(1)}px)`;
+    feedEl.style.width = feedW + 'px';
+    const s = Math.floor(E.ft = (E.ft || 0) + dt);
+    feedTc.textContent = `00:${String(Math.floor(s / 60)).padStart(2, '0')}:${String(s % 60).padStart(2, '0')}`;
   }
   return {
-    x: E.x, y: E.y - y, w: droneW, yaw: E.yaw,
-    pitch: 0.05 + clamp(fwd / 1100, -1, 1) * 0.3,
-    roll: -clamp(side / 1100, -1, 1) * 0.35,
-    thr: lerp(0.62 + move * 0.38 + clamp(-E.vy / 900) * 0.15, 0, land),
+    x: E.x, y: E.y - y, w: droneW * (1 - 0.4 * E.pb), yaw: E.yaw, pitch: E.pitch, roll: E.roll,
+    thr: lerp(0.6 + move01 * 0.32 + clamp(-E.vy / 900) * 0.12, 0, land),
     gim: -0.3, land,
   };
 }
@@ -353,6 +510,10 @@ function updateDom(T, y) {
   // header solid once past the flight
   bar.classList.toggle('solid', y > flightEnd - vh * 0.6);
   route.classList.toggle('show', y > flightEnd - vh * 0.6);
+  if (!reduce && hours.length > 1) {
+    const label = hourLabel(hourAt(y));
+    if (clock.textContent !== label) clock.textContent = label;
+  }
   // word-by-word statement
   if (scrubWords.length) {
     const p = clamp((y - introTop - vh * 0.1) / Math.max(1, introH - vh * 1.2));
@@ -376,11 +537,59 @@ function updateDom(T, y) {
 let fired = false;
 function fireShutter() {
   if (reduce) return;
+  if (sound) sound.click();
   shutter.animate([{ opacity: 0 }, { opacity: 0.85, offset: 0.1 }, { opacity: 0 }], { duration: 560, easing: 'cubic-bezier(.22,.61,.36,1)' });
 }
 
+/* ---------- sound: off until asked for ---------- */
+const soundBtn = $('#sound-btn');
+let sound = null;
+soundBtn.addEventListener('click', async () => {
+  if (!sound) sound = (await import('./sound.js')).createSound();
+  sound.set(!sound.on);
+  soundBtn.setAttribute('aria-pressed', String(sound.on));
+});
+document.addEventListener('visibilitychange', () => { if (sound && sound.on && document.hidden) { sound.set(false); soundBtn.setAttribute('aria-pressed', 'false'); } });
+
+/* ---------- hero: the visitor can turn the drone by hand ---------- */
+// Drag spins it with momentum; let go and it drifts back to its pose. Horizontal drags only on
+// touch (the hero is pan-y), so a vertical swipe still scrolls into the flight.
+const hero = $('#hero');
+const spin = { yaw: 0, pitch: 0, vy: 0, vp: 0, drag: null };
+hero.addEventListener('pointerdown', (e) => {
+  if (reduce || e.button || e.target.closest('a,button')) return;
+  spin.drag = { x: e.clientX, y: e.clientY, t: performance.now(), id: e.pointerId };
+  hero.setPointerCapture(e.pointerId);
+  hero.classList.add('dragging');
+});
+hero.addEventListener('pointermove', (e) => {
+  const d = spin.drag;
+  if (!d || e.pointerId !== d.id) return;
+  const now = performance.now(), dts = Math.max(0.008, (now - d.t) / 1000);
+  const dyaw = (e.clientX - d.x) * 0.009, dp = (e.clientY - d.y) * 0.004;
+  spin.yaw += dyaw; spin.pitch = clamp(spin.pitch + dp, -0.4, 0.4);
+  spin.vy = lerp(spin.vy, dyaw / dts, 0.5); spin.vp = 0;
+  Object.assign(d, { x: e.clientX, y: e.clientY, t: now });
+});
+const endDrag = () => { spin.drag = null; hero.classList.remove('dragging'); };
+hero.addEventListener('pointerup', endDrag);
+hero.addEventListener('pointercancel', endDrag);
+function spinStep(dt) {
+  if (spin.drag) return;
+  spin.yaw = Math.atan2(Math.sin(spin.yaw), Math.cos(spin.yaw));   // come home the short way
+  const w = 1.7;
+  spin.vy += (-w * w * spin.yaw - 2 * w * 0.55 * spin.vy) * dt; spin.yaw += spin.vy * dt;
+  spin.vp += (-w * w * spin.pitch - 2 * w * spin.vp) * dt; spin.pitch += spin.vp * dt;
+}
+
+/* ---------- case study: survey → finished ---------- */
+$$('.ba').forEach((ba) => {
+  const r = $('.ba-range', ba);
+  r.addEventListener('input', () => ba.style.setProperty('--split', r.value + '%'));
+});
+
 /* ---------- 3D ---------- */
-let world = null, drone = null;
+let world = null, drone = null, lastDock = null;
 async function boot3D() {
   try {
     const probe = document.createElement('canvas');
@@ -392,8 +601,8 @@ async function boot3D() {
     steps.model = true;
     const saveData = (navigator.connection && (navigator.connection.saveData || /2g/.test(navigator.connection.effectiveType || ''))) || false;
     const quality = small
-      ? { dpr: 1.5, seg: 110, dust: 220, aa: false, city: 190, video: false }
-      : { dpr: 2, seg: 220, dust: 520, aa: true, city: 420, video: !saveData };
+      ? { dpr: 1.5, seg: 110, dust: 220, aa: false, city: saveData ? 200 : 400 }
+      : { dpr: 2, seg: 220, dust: 520, aa: true, city: 900 };
     world = createWorld({ canvas, drone, quality });
     world.update({ T: 0, time: 0, dt: 0, light: 0 });
     steps.frame = true;
@@ -406,12 +615,27 @@ async function boot3D() {
   }
 }
 
+/* ---------- sky layer and shadow, behind and under the drone once it flies in front ---------- */
+const skyEl = $('#sky'), shadowEl = $('#drone-shadow');
+function paintSky([top, mid, foot], d) {
+  // a warm pool on the sky where the drone is, and its shadow cast on the page beneath it
+  const glow = d ? `radial-gradient(${Math.round(d.w * 1.6)}px ${Math.round(d.w * 1.1)}px at ${d.x.toFixed(0)}px ${d.y.toFixed(0)}px, rgba(216,119,76,.16), transparent 70%),` : '';
+  skyEl.style.background = `${glow}linear-gradient(180deg, ${top} 0%, ${mid} 50%, ${foot} 100%)`;
+  if (!d) return;
+  const lift = 1 - d.land;
+  shadowEl.style.width = d.w * 0.8 + 'px';
+  shadowEl.style.transform = `translate(${(d.x - d.w * 0.4).toFixed(1)}px, ${(d.y + d.w * (0.2 + 0.32 * lift)).toFixed(1)}px)`;
+  shadowEl.style.opacity = (0.55 - 0.25 * lift).toFixed(2);
+}
+
 /* ---------- main loop ---------- */
-let cur = scrollY, last = performance.now(), time = 0, frames = 0, slow = 0, dprDropped = false;
+let cur = scrollY, last = performance.now(), time = 0, frames = 0, slow = 0, dprDropped = false, landed = false;
 function loop(now) {
   const dt = Math.min(0.05, (now - last) / 1000); last = now; time += dt;
+  if (lenis) lenis.raf(now);
   const y = scrollY;
-  cur += (y - cur) * (reduce ? 1 : 1 - Math.exp(-dt * 5.2));
+  // Lenis already smooths the scroll; this only softens touch flicks and jumps
+  cur += (y - cur) * (reduce ? 1 : 1 - Math.exp(-dt * (lenis ? 9 : 5.2)));
   if (Math.abs(y - cur) < 0.1) cur = y;
   const T = timelineT(cur);
   updateDom(T, cur);
@@ -426,7 +650,19 @@ function loop(now) {
       // at full daylight the next dark section is already on screen, and left transparent it
       // shows bone through its own copy. Only true ink lets them go back to the canvas.
       root.classList.toggle('crossing', mix > 0.002);
-      world.update({ T, time, dt, light: mix, dock: T >= 3 ? escort(y, dt) : null });
+      const dock = T >= 3 ? escort(y, dt) : null;
+      lastDock = dock;
+      spinStep(dt);
+      const front = T >= 3.4;
+      root.classList.toggle('front', front);
+      const intro = introAt ? clamp((now - introAt) / 2600) : 0;
+      world.update({ T, time, dt, light: mix, dock, hour: hourAt(y), spin, front, intro });
+      if (front) paintSky(world.skyStops(mix), dock);
+      if (sound && sound.on) {
+        const seen = !dock || (dock.x > -60 && dock.x < innerWidth + 60 && dock.y > -60 && dock.y < vh + 60);
+        sound.update(dock ? dock.thr : 0.75 + 0.25 * clamp(T - 2), seen ? 1 : 0.15);
+        if (dock && dock.land > 0.92 && !landed) { landed = true; sound.click(); } else if (!dock || dock.land < 0.5) landed = false;
+      }
       // adaptive quality: if the first second is slow, drop the pixel ratio once
       if (++frames > 20 && frames < 90) { slow += dt > 0.032 ? 1 : 0; }
       if (frames === 90 && slow > 40 && !dprDropped) { dprDropped = true; world.renderer.setPixelRatio(1); world.resize(); }
@@ -439,5 +675,5 @@ addEventListener('resize', () => { layout(); if (world) { world.resize(); if (re
 
 boot3D().then(() => {
   requestAnimationFrame((n) => { last = n; loop(n); });
-  if (location.search.includes('debug')) window.__vc = { get T() { return timelineT(cur); }, get info() { return world && world.info(); }, get frames() { return frames; }, get docks() { return docks; }, drone, world };
+  if (location.search.includes('debug')) window.__vc = { get T() { return timelineT(cur); }, get info() { return world && world.info(); }, get frames() { return frames; }, get docks() { return docks; }, get dock() { return lastDock; }, get lenis() { return lenis; }, get E() { return E; }, get loiter() { return loiter; }, drone, world };
 });

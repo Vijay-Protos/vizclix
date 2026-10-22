@@ -282,7 +282,6 @@ details.q .a{padding:0 48px 30px 0;color:#B4B8BF;line-height:1.7;max-width:60ch;
 /* ---------- case study ---------- */
 .study-grid{display:grid;grid-template-columns:minmax(0,5fr) minmax(0,7fr);gap:clamp(32px,4vw,72px);align-items:start}
 .study-shot{margin:0;position:sticky;top:calc(var(--bar) + 32px)}
-.study-shot img{width:100%;height:auto;display:block;border:1px solid var(--line);filter:saturate(.86) brightness(.92)}
 .study-shot figcaption{margin-top:14px;color:var(--altitude);font-family:var(--mono);font-size:10.5px;letter-spacing:.14em;text-transform:uppercase;line-height:1.7}
 .study-body{display:grid;gap:clamp(36px,4vw,64px)}
 .study-block{border-top:1px solid var(--line);padding-top:26px}
@@ -338,6 +337,18 @@ details.q .a{padding:0 48px 30px 0;color:#B4B8BF;line-height:1.7;max-width:60ch;
 .gl .sec,.gl .foot{position:relative;z-index:2}
 /* a soft scrim keeps body copy readable if the drone drifts behind it */
 .gl .sec-head,.gl .svc-list,.gl .steps,.gl .qs,.gl .form,.gl .slots{position:relative;z-index:1}
+/* after the flight the drone flies in front of the page: the canvas becomes a clear layer above
+   the sections, and the sky is painted by #sky behind them */
+.sky{position:fixed;inset:0;z-index:0;display:none;pointer-events:none}
+.front .sky{display:block}
+.front #gl{z-index:4;background:transparent;pointer-events:none}
+.drone-shadow{position:fixed;left:0;top:0;z-index:3;height:14px;border-radius:50%;pointer-events:none;display:none;background:radial-gradient(closest-side,rgba(5,6,8,.75),rgba(5,6,8,0));will-change:transform}
+.front .drone-shadow{display:block}
+/* Lenis */
+html.lenis,html.lenis body{height:auto}
+.lenis:not(.lenis-autoToggle).lenis-stopped{overflow:clip}
+.lenis.lenis-smooth iframe{pointer-events:none}
+
 /* the sky behind the hero is lit now: the copy side keeps a little shade */
 .hero::before{content:'';position:absolute;inset:0;z-index:1;pointer-events:none;background:linear-gradient(90deg,rgba(10,11,13,.6) 0%,rgba(10,11,13,.22) 46%,rgba(10,11,13,0) 66%)}
 
@@ -361,6 +372,59 @@ details.q .a{padding:0 48px 30px 0;color:#B4B8BF;line-height:1.7;max-width:60ch;
 .route a:hover span,.route a:focus-visible span{opacity:1;transform:none}
 .route.on-light{color:var(--ink)}
 .route.on-light a span{background:var(--bone);color:var(--ink)}
+
+/* the drone's camera feed: hangs beneath it at a stop, like a monitor on the pilot's controller */
+.feed{position:fixed;left:0;top:0;z-index:3;margin:0;pointer-events:none;opacity:0;transform-origin:50% 0;transition:opacity .4s var(--ease);will-change:transform}
+.feed.on{opacity:1}
+.feed-view{position:relative;aspect-ratio:16/9;background:var(--haze);overflow:hidden;border:1px solid rgba(237,232,223,.28)}
+.feed-view>*{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;display:none}
+.feed[data-kind="video"] video,.feed[data-kind="image"] img,.feed[data-kind="plan"] .feed-plan{display:block}
+.feed-view::after{content:'';position:absolute;inset:8px;pointer-events:none;
+  background:linear-gradient(var(--bone),var(--bone)) top left/10px 1px no-repeat,linear-gradient(var(--bone),var(--bone)) top left/1px 10px no-repeat,
+    linear-gradient(var(--bone),var(--bone)) top right/10px 1px no-repeat,linear-gradient(var(--bone),var(--bone)) top right/1px 10px no-repeat,
+    linear-gradient(var(--bone),var(--bone)) bottom left/10px 1px no-repeat,linear-gradient(var(--bone),var(--bone)) bottom left/1px 10px no-repeat,
+    linear-gradient(var(--bone),var(--bone)) bottom right/10px 1px no-repeat,linear-gradient(var(--bone),var(--bone)) bottom right/1px 10px no-repeat;opacity:.7}
+.feed-plan{background:#0f141b;fill:none;stroke:var(--altitude);stroke-width:.8}
+.feed-plan .plot{stroke-dasharray:3 2}
+.feed-plan .path{stroke:var(--ember);stroke-width:1.1;stroke-dasharray:240;stroke-dashoffset:240;animation:plan 4.5s var(--ease) infinite}
+.feed-plan circle{fill:var(--ember);stroke:none}
+@keyframes plan{70%,100%{stroke-dashoffset:0}}
+.feed-hud{display:flex;gap:10px;align-items:center;justify-content:space-between;padding:6px 8px;background:rgba(10,11,13,.78);font-size:9.5px;letter-spacing:.14em;color:var(--bone);white-space:nowrap}
+.feed-hud .rec{display:inline-flex;align-items:center;gap:6px;color:#FF8F80}
+.feed-hud .rec::before{content:'';width:6px;height:6px;border-radius:50%;background:#FF5A4E;animation:rec 1.2s steps(2) infinite}
+@keyframes rec{50%{opacity:.15}}
+.feed-label{overflow:hidden;text-overflow:ellipsis}
+
+/* sound switch: four bars that move only while sound is on */
+.sound-btn{display:inline-flex;align-items:center;gap:10px;min-height:44px;padding:0 4px;border:0;background:none;cursor:pointer;font-size:15px;opacity:.85}
+.sound-btn i{display:flex;align-items:flex-end;gap:2px;height:12px}
+.sound-btn b{width:2px;height:3px;background:currentColor;transition:height .3s}
+.sound-btn[aria-pressed="true"] b{animation:eq .9s ease-in-out infinite alternate}
+.sound-btn[aria-pressed="true"] b:nth-child(2){animation-delay:-.3s}.sound-btn[aria-pressed="true"] b:nth-child(3){animation-delay:-.6s}.sound-btn[aria-pressed="true"] b:nth-child(4){animation-delay:-.15s}
+@keyframes eq{from{height:3px}to{height:12px}}
+.reduced .sound-btn,.no-gl .sound-btn{display:none}
+
+/* hero: drag to turn the drone */
+.drag-cue{display:none}
+.gl .drag-cue{display:inline}
+.gl .hero{cursor:grab;touch-action:pan-y}
+.gl .hero.dragging{cursor:grabbing}
+.gl .hero.dragging *{user-select:none}
+
+/* case study: drag between the survey and the finished frame */
+.ba{position:relative;overflow:hidden;--split:50%}
+.ba>img{width:100%;height:auto;display:block;border:1px solid var(--line);filter:saturate(.86) brightness(.92)}
+.ba-survey{position:absolute;inset:0;clip-path:inset(0 calc(100% - var(--split)) 0 0);background:#0f141b}
+.ba-survey img{width:100%;height:100%;object-fit:cover;display:block;filter:grayscale(1) contrast(1.5) brightness(.5);mix-blend-mode:luminosity;opacity:.85}
+.ba-survey::after{content:'';position:absolute;inset:0;background:linear-gradient(rgba(124,147,173,.22) 1px,transparent 1px) 0 0/28px 28px,linear-gradient(90deg,rgba(124,147,173,.22) 1px,transparent 1px) 0 0/28px 28px}
+.ba::after{content:'';position:absolute;top:0;bottom:0;left:var(--split);width:1px;background:var(--ember);pointer-events:none}
+.ba-tag{position:absolute;top:14px;color:var(--bone);font-size:10.5px;pointer-events:none}
+.ba-tag.l{left:14px}.ba-tag.r{right:14px}
+.ba-range{position:absolute;inset:0;width:100%;height:100%;margin:0;opacity:0;cursor:ew-resize;touch-action:pan-y}
+.ba:has(.ba-range:focus-visible){outline:2px solid var(--bone);outline-offset:3px}
+.inline-link{color:var(--bone);border-bottom:1px solid var(--ember);white-space:nowrap}
+.credits{grid-column:1 / -1;color:var(--mist);font-size:10px;line-height:1.8}
+.credits a{border-bottom:1px solid var(--line-2)}
 
 /* ---------- responsive ---------- */
 @media (max-width:1100px){
@@ -389,7 +453,7 @@ details.q .a{padding:0 48px 30px 0;color:#B4B8BF;line-height:1.7;max-width:60ch;
   .deal article + article{border-left:0;border-top:1px solid var(--line);padding-left:0}
 
   :root{--bar:64px}
-  .bar-clock,.brand-sub,.quote-link,.brand .sep{display:none}
+  .bar-clock,.brand-sub,.quote-link,.brand .sep,.sound-btn span{display:none}
   .hero-grid{grid-template-columns:minmax(0,1fr)}
   .hero-grid .idx{display:none}
   .hero-copy{grid-column:1;max-width:none;padding-bottom:36px}

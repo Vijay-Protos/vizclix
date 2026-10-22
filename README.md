@@ -30,7 +30,9 @@ ES modules need HTTP; opening the file directly will not work.
     js/drone.js         procedural drone model
     vendor/three/       Three.js r186 runtime (MIT)
     assets/work/        project imagery
-    assets/video/       horizon footage (see Credits)
+    assets/feed/        drone camera-feed clips (stock placeholders)
+    assets/city/        Thane West district from OpenStreetMap
+    vendor/lenis/       Lenis 1.3.26 smooth scrolling (MIT)
 
 ## Motion
 The page respects `prefers-reduced-motion` and falls back to a static layout.
@@ -38,11 +40,13 @@ A visitor can override it from the hero prompt or the footer switch.
 
 ## Credits
 
-`assets/video/skyline-dusk.mp4` — trimmed and re-encoded from "Drone Footage of
-Buildings at Night" by ArtHouse Studio, via Pexels. Free for commercial use
-under the Pexels licence; attribution is not required but is given here.
-https://www.pexels.com/video/drone-footage-of-buildings-at-night-8494852/
+`assets/feed/*.mp4` — stock placeholders from Mixkit (Mixkit Stock Video Free Licence),
+shown in the drone's camera feed until VizClix footage replaces them.
 
-Three.js r186 — MIT licence.
+`assets/city/thane-district.json` — building footprints, roads and lakes of Thane West from
+OpenStreetMap (© OpenStreetMap contributors, ODbL), built by `tools/district.py`. Heights are
+mapped where OSM has them and estimated from footprint size where it does not.
+
+Three.js r186 — MIT licence. Lenis 1.3.26 — MIT licence (vendor/lenis/LICENSE).
 
 Project imagery under `assets/work/` is Polycrayons studio work.
