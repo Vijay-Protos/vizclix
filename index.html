@@ -25,7 +25,10 @@
 
 <!-- 3D scene: one fixed canvas behind the hero, intro and flight -->
 <div class="progress" aria-hidden="true"><i id="progress-fill"></i></div>
+<!-- sky layer: behind the page once the drone flies in front of it (html.front) -->
+<div class="sky" id="sky" aria-hidden="true"></div>
 <canvas id="gl" aria-hidden="true"></canvas>
+<div class="drone-shadow" id="drone-shadow" aria-hidden="true"></div>
 <div class="shutter" id="shutter" aria-hidden="true"></div>
 
 <!-- loader: counts real milestones (fonts, 3D engine, model, first frame) -->

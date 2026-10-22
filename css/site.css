@@ -337,6 +337,18 @@ details.q .a{padding:0 48px 30px 0;color:#B4B8BF;line-height:1.7;max-width:60ch;
 .gl .sec,.gl .foot{position:relative;z-index:2}
 /* a soft scrim keeps body copy readable if the drone drifts behind it */
 .gl .sec-head,.gl .svc-list,.gl .steps,.gl .qs,.gl .form,.gl .slots{position:relative;z-index:1}
+/* after the flight the drone flies in front of the page: the canvas becomes a clear layer above
+   the sections, and the sky is painted by #sky behind them */
+.sky{position:fixed;inset:0;z-index:0;display:none;pointer-events:none}
+.front .sky{display:block}
+.front #gl{z-index:4;background:transparent;pointer-events:none}
+.drone-shadow{position:fixed;left:0;top:0;z-index:3;height:14px;border-radius:50%;pointer-events:none;display:none;background:radial-gradient(closest-side,rgba(5,6,8,.75),rgba(5,6,8,0));will-change:transform}
+.front .drone-shadow{display:block}
+/* Lenis */
+html.lenis,html.lenis body{height:auto}
+.lenis:not(.lenis-autoToggle).lenis-stopped{overflow:clip}
+.lenis.lenis-smooth iframe{pointer-events:none}
+
 /* the sky behind the hero is lit now: the copy side keeps a little shade */
 .hero::before{content:'';position:absolute;inset:0;z-index:1;pointer-events:none;background:linear-gradient(90deg,rgba(10,11,13,.6) 0%,rgba(10,11,13,.22) 46%,rgba(10,11,13,0) 66%)}
 

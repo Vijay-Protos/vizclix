@@ -145,7 +145,7 @@ void main(){
 }`;
 
 export function createWorld({ canvas, drone, quality }) {
-  const renderer = new THREE.WebGLRenderer({ canvas, antialias: quality.aa, powerPreference: 'high-performance' });
+  const renderer = new THREE.WebGLRenderer({ canvas, antialias: quality.aa, alpha: true, powerPreference: 'high-performance' });
   renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, quality.dpr));
   renderer.toneMapping = THREE.ACESFilmicToneMapping;
   renderer.toneMappingExposure = 1.15;
@@ -218,28 +218,6 @@ export function createWorld({ canvas, drone, quality }) {
     new THREE.MeshBasicMaterial({ color: EMBER, transparent: true, opacity: 0.8, side: THREE.DoubleSide }));
   baseRing.rotation.x = -Math.PI / 2; baseRing.position.y = 0.01; pin.add(baseRing);
 
-  // Far horizon: real aerial footage sitting behind the generated district, so the approach
-  // happens over a living city. Loaded lazily and only where it is worth the bytes; without it
-  // the scene still reads, because the district carries the skyline on its own.
-  const backMat = new THREE.MeshBasicMaterial({ color: 0x79838f, transparent: true, opacity: 0, depthWrite: false, fog: false });
-  const backdrop = new THREE.Mesh(new THREE.PlaneGeometry(250, 141), backMat);
-  backdrop.position.set(0, 26, -74); backdrop.visible = false; backdrop.frustumCulled = false;
-  pin.add(backdrop);
-  let backReady = false;
-  if (quality.video) {
-    const vid = document.createElement('video');
-    vid.src = 'assets/video/skyline-dusk.mp4';
-    vid.muted = true; vid.loop = true; vid.playsInline = true; vid.preload = 'auto';
-    vid.setAttribute('muted', ''); vid.setAttribute('playsinline', '');
-    vid.addEventListener('canplay', () => {
-      const tex = new THREE.VideoTexture(vid);
-      tex.colorSpace = THREE.SRGBColorSpace;
-      backMat.map = tex; backMat.needsUpdate = true; backReady = true;
-      vid.play().catch(() => { backReady = false; });
-    }, { once: true });
-    vid.addEventListener('error', () => { backReady = false; });
-  }
-
   // Box shader for the property massing (instanced: one draw call)
   const CITY_VS = `
     attribute float aSeed;
@@ -264,6 +242,8 @@ export function createWorld({ canvas, drone, quality }) {
       // facade tone: darker at the base, slightly cooler up high
       float up = clamp(vPos.y + 0.5, 0.0, 1.0);
       vec3 col = mix(uInk * 0.72, uCool, up * 0.3);
+      // faces turned toward the warm horizon catch it; the rest fall off, so towers read as solids
+      col *= 0.62 + 0.55 * max(dot(normalize(vN), normalize(vec3(-0.45, 0.35, 0.82))), 0.0);
       if (an.y < 0.5) {
         // small windows, mostly dark; a few warm. Whole towers vary in how lived-in they look.
         vec2 grid = vec2(0.17, 0.26);
@@ -279,8 +259,8 @@ export function createWorld({ canvas, drone, quality }) {
       // fade up out of the dark, so the approach never turns into a canyon of flat tiles
       if (vDist < uNear) discard;
       col *= mix(0.3, 1.0, smoothstep(uNear, uNear + 23.0, vDist));
-      float fog = smoothstep(16.0, 130.0, vDist);
-      col = mix(col, uFog, fog * 0.85);
+      float fog = smoothstep(30.0, 190.0, vDist);
+      col = mix(col, uFog, fog * 0.7);
       gl_FragColor = vec4(mix(uFog, col, uFade), 1.0);
       #include <colorspace_fragment>
     }`;
@@ -446,16 +426,40 @@ export function createWorld({ canvas, drone, quality }) {
   }
   resize();
 
-  // a warm pool of light that travels with the drone once it is escorting the page
-  const haloTex = (() => {
-    const c = document.createElement('canvas'); c.width = c.height = 128;
-    const x = c.getContext('2d'), gr = x.createRadialGradient(64, 64, 0, 64, 64, 64);
-    gr.addColorStop(0, 'rgba(255,255,255,1)'); gr.addColorStop(1, 'rgba(255,255,255,0)');
-    x.fillStyle = gr; x.fillRect(0, 0, 128, 128);
-    return new THREE.CanvasTexture(c);
-  })();
-  const halo = new THREE.Sprite(new THREE.SpriteMaterial({ map: haloTex, color: GLOW, transparent: true, opacity: 0, blending: THREE.AdditiveBlending, depthWrite: false, fog: false }));
-  halo.visible = false; scene.add(halo);
+  // Fog banks over the night scene: a full-screen layer of drifting noise that parts around the
+  // drone. Thick when the page opens and the drone flies out of it, thin in the hero, rolling in
+  // over the district at night and clearing as the drone arrives over the property. It is a
+  // density, never a blur: inside the clearing the scene is rendered exactly as it is.
+  const FOG_FS = `
+    uniform float uTime; uniform float uAmt; uniform float uHoleR; uniform float uAspect;
+    uniform vec2 uHole; uniform vec2 uDrift; uniform vec3 uCol;
+    varying vec2 vUv;
+    float hash(vec2 p){p=fract(p*vec2(123.34,456.21));p+=dot(p,p+45.32);return fract(p.x*p.y);}
+    float noise(vec2 p){vec2 i=floor(p),f=fract(p);float a=hash(i),b=hash(i+vec2(1,0)),c=hash(i+vec2(0,1)),d=hash(i+vec2(1,1));vec2 u=f*f*(3.-2.*f);return mix(a,b,u.x)+(c-a)*u.y*(1.-u.x)+(d-b)*u.x*u.y;}
+    float fbm(vec2 p){float v=0.,a=.5;for(int i=0;i<5;i++){v+=a*noise(p);p=p*2.03+3.7;a*=.5;}return v;}
+    void main(){
+      vec2 p = vec2((vUv.x - 0.5) * uAspect, vUv.y - 0.5);
+      vec2 q = p * 2.4 + uDrift;
+      float n = fbm(q + vec2(uTime * 0.035, uTime * 0.008));
+      float m = fbm(q * 1.6 + n * 1.4 - vec2(uTime * 0.05, 0.0));
+      float bank = smoothstep(0.32, 0.78, m);
+      float low = smoothstep(0.45, -0.4, p.y);              // heavier near the ground
+      float hole = smoothstep(uHoleR * 0.45, uHoleR, length((vUv - uHole) * vec2(uAspect, 1.0)));
+      float a = uAmt * mix(0.3, 1.0, bank) * mix(0.6, 1.0, low) * hole;
+      gl_FragColor = vec4(uCol, clamp(a, 0.0, 0.94));
+      #include <colorspace_fragment>
+    }`;
+  const fogMat = new THREE.ShaderMaterial({
+    vertexShader: 'varying vec2 vUv; void main(){ vUv = uv; gl_Position = vec4(position.xy, 0.0, 1.0); }',
+    fragmentShader: FOG_FS, transparent: true, depthTest: false, depthWrite: false,
+    uniforms: {
+      uTime: { value: 0 }, uAmt: { value: 1 }, uHoleR: { value: 0 }, uAspect: { value: 1 },
+      uHole: { value: new THREE.Vector2(0.5, 0.5) }, uDrift: { value: new THREE.Vector2() }, uCol: { value: new THREE.Color() },
+    },
+  });
+  const fogQuad = new THREE.Mesh(new THREE.PlaneGeometry(2, 2), fogMat);
+  fogQuad.frustumCulled = false; fogQuad.renderOrder = 20; scene.add(fogQuad);
+  const camDir = new THREE.Vector3(), droneNdc = new THREE.Vector3();
 
   const clamp01 = (x) => Math.min(1, Math.max(0, x));
   const BONE_C = new THREE.Color(BONE);
@@ -481,6 +485,8 @@ export function createWorld({ canvas, drone, quality }) {
   // dock is the escort pose from the page: screen x/y and width in px, plus attitude and landing
   function update(s) {
     const T = Math.min(4, Math.max(0, s.T));
+    const intro = s.intro == null ? 1 : s.intro;
+    const ein = 1 - Math.pow(1 - intro, 3);   // the opening: the drone flies out of the fog
     const v = sample(T);
     const f = clamp01(T - 2);                 // the flight, 0 → 1
     const esc = clamp01((T - 3) / 0.35);      // hand-over from flight to escort
@@ -499,10 +505,6 @@ export function createWorld({ canvas, drone, quality }) {
     pin.visible = esc < 1 && pin.position.z > -120;
     heroMesh.visible = reveal > 0.01;
     heroMat.uniforms.uFade.value = reveal * (1 - esc);
-    // the horizon rises as we approach, then gives way to the finished frame
-    const horizon = clamp01((T - 1.3) / 0.8) * (1 - reveal) * (1 - esc);
-    backdrop.visible = backReady && horizon > 0.01;
-    backMat.opacity = horizon * 0.95;
     // the district rises into view as the property nears, instead of crowding the opening
     cityMat.uniforms.uFade.value = (1 - esc) * clamp01((T - 1.65) / 0.7);
     city.visible = cityMat.uniforms.uFade.value > 0.01;
@@ -521,7 +523,7 @@ export function createWorld({ canvas, drone, quality }) {
     const lit = s.light || 0;
     skyMat.uniforms.uStudio.value = esc;
     skyMat.uniforms.uLit.value = lit;
-    const warm = dayLight(s.hour == null ? 19.6 : s.hour);
+    dayLight(s.hour == null ? 19.6 : s.hour);
     // dusk at the hero deepens into night over the flight; the district's windows carry it
     skyMat.uniforms.uSun.value = lerp(1, 0.5, clamp01((T - 0.8) / 1.8));
     moveCars(s.dt);
@@ -561,6 +563,7 @@ export function createWorld({ canvas, drone, quality }) {
     // the hero lets the visitor turn the drone by hand (s.spin); it fades out as the flight starts
     const hand = 1 - clamp01(T / 0.5);
     if (s.spin) { ry += s.spin.yaw * hand; rx += s.spin.pitch * hand; }
+    pz -= 16 * (1 - ein); py += 1.4 * (1 - ein); ry += 1.1 * (1 - ein); rx += 0.22 * (1 - ein);
     g.position.set(px, py + Math.sin(t * 1.3) * bob, pz);
     g.rotation.set(rx + Math.sin(t * 0.7) * 0.015 + speed * 0.05, ry, rz + Math.sin(t * 0.9) * 0.025 * (1 - land));
     g.scale.setScalar(sc);
@@ -568,12 +571,24 @@ export function createWorld({ canvas, drone, quality }) {
     drone.update(s.dt, thr);
     drone.setLedPulse(t);
 
-    halo.visible = esc > 0.01 && lit < 0.98;
-    if (halo.visible) {
-      halo.position.set(px, py, pz - 1.5);
-      halo.scale.setScalar(sc * 7.5);
-      halo.material.opacity = (0.14 + warm) * esc * (1 - lit);
+    // fog: the opening clears around the arriving drone; at night a bank rolls over the district
+    // and lifts as the property is revealed; none once the flight is over
+    const bank = clamp01((T - 1.5) / 0.6) * (1 - clamp01((T - 2.45) / 0.4));
+    const amt = (lerp(1, 0.12, ein) * (1 - clamp01((T - 0.6) / 0.6)) + bank * 0.55) * (1 - esc);
+    fogQuad.visible = !s.front && amt > 0.005;
+    if (fogQuad.visible) {
+      const fu = fogMat.uniforms;
+      droneNdc.copy(g.position).project(camera);
+      fu.uHole.value.set((droneNdc.x + 1) / 2, (droneNdc.y + 1) / 2);
+      fu.uHoleR.value = lerp(0.0, 0.42, ein) * (1 - bank) + 0.3 * bank;
+      fu.uAmt.value = amt; fu.uTime.value = t; fu.uAspect.value = aspect;
+      camera.getWorldDirection(camDir);
+      fu.uDrift.value.set(Math.atan2(camDir.x, -camDir.z) * 0.9, T * 0.35);
+      fu.uCol.value.copy(fogC).lerp(BONE_C, 0.12);
     }
+    // once the drone flies in front of the page the canvas is a clear layer and the sky is CSS
+    sky.visible = !s.front;
+    if (s.front) renderer.setClearColor(0x000000, 0); else renderer.setClearColor(INK, 1);
 
     // ground scanner: only over the property, during the flight
     const scanOn = (1 - esc) * clamp01((T - 1.4) / 0.6);
@@ -595,7 +610,16 @@ export function createWorld({ canvas, drone, quality }) {
     renderer.render(scene, camera);
   }
 
+  // the studio sky as CSS colour stops (top, middle, foot), matching the shader's gradient, for
+  // the sky layer that sits behind the page once the canvas has moved in front of it
+  const stop = new THREE.Color(), glowC = new THREE.Color(GLOW), add = new THREE.Color();
+  function skyStops(lit) {
+    const u = skyMat.uniforms;
+    return [[0, 0], [0.43, 0], [0.97, 0.926]].map(([t, g]) =>
+      '#' + stop.copy(u.uSTop.value).lerp(u.uSLow.value, t).add(add.copy(glowC).multiplyScalar(u.uSGlow.value * g)).lerp(BONE_C, lit).getHexString());
+  }
+
   canvas.addEventListener('webglcontextlost', (e) => { e.preventDefault(); document.documentElement.classList.add('no-gl'); });
 
-  return { update, resize, renderer, camera, scene, info: () => renderer.info.render };
+  return { update, resize, skyStops, renderer, camera, scene, info: () => renderer.info.render };
 }
