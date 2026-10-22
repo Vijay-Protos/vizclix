@@ -338,6 +338,29 @@ details.q .a{padding:0 48px 30px 0;color:#B4B8BF;line-height:1.7;max-width:60ch;
 .gl .sec,.gl .foot{position:relative;z-index:2}
 /* a soft scrim keeps body copy readable if the drone drifts behind it */
 .gl .sec-head,.gl .svc-list,.gl .steps,.gl .qs,.gl .form,.gl .slots{position:relative;z-index:1}
+/* the sky behind the hero is lit now: the copy side keeps a little shade */
+.hero::before{content:'';position:absolute;inset:0;z-index:1;pointer-events:none;background:linear-gradient(90deg,rgba(10,11,13,.6) 0%,rgba(10,11,13,.22) 46%,rgba(10,11,13,0) 66%)}
+
+/* ---------- escort: the drone's viewfinder, and the route rail ---------- */
+/* corner marks like the logo's, around whatever heading or CTA the drone has stopped at */
+.reticle{--c:var(--ember);position:absolute;left:0;top:0;width:0;height:0;z-index:3;pointer-events:none;opacity:0;transform:scale(1.05);transition:opacity .45s var(--ease),transform .8s var(--ease-out);
+  background:
+    linear-gradient(var(--c),var(--c)) top left/18px 1.5px no-repeat,linear-gradient(var(--c),var(--c)) top left/1.5px 18px no-repeat,
+    linear-gradient(var(--c),var(--c)) top right/18px 1.5px no-repeat,linear-gradient(var(--c),var(--c)) top right/1.5px 18px no-repeat,
+    linear-gradient(var(--c),var(--c)) bottom left/18px 1.5px no-repeat,linear-gradient(var(--c),var(--c)) bottom left/1.5px 18px no-repeat,
+    linear-gradient(var(--c),var(--c)) bottom right/18px 1.5px no-repeat,linear-gradient(var(--c),var(--c)) bottom right/1.5px 18px no-repeat}
+.reticle.on{opacity:1;transform:none}
+.route{position:fixed;right:max(8px,env(safe-area-inset-right,0px));top:50%;transform:translateY(-50%);z-index:60;display:flex;flex-direction:column;color:var(--bone);opacity:0;visibility:hidden;transition:opacity .5s var(--ease),visibility .5s,color .4s var(--ease)}
+.route.show{opacity:1;visibility:visible}
+.route::before{content:'';position:absolute;right:21.5px;top:22px;bottom:22px;width:1px;background:currentColor;opacity:.16}
+.route a{position:relative;display:flex;align-items:center;justify-content:flex-end;width:44px;height:44px}
+.route a i{width:6px;height:6px;margin-right:19px;border-radius:50%;background:currentColor;opacity:.4;transition:opacity .3s,transform .4s var(--ease-out),background .3s}
+.route a:hover i,.route a:focus-visible i{opacity:1}
+.route a.on i{opacity:1;background:var(--ember);transform:scale(1.6)}
+.route a span{position:absolute;right:40px;padding:5px 11px;white-space:nowrap;font-size:14px;background:var(--ink);color:var(--bone);opacity:0;transform:translateX(6px);pointer-events:none;transition:opacity .25s,transform .3s var(--ease)}
+.route a:hover span,.route a:focus-visible span{opacity:1;transform:none}
+.route.on-light{color:var(--ink)}
+.route.on-light a span{background:var(--bone);color:var(--ink)}
 
 /* ---------- responsive ---------- */
 @media (max-width:1100px){
@@ -345,6 +368,7 @@ details.q .a{padding:0 48px 30px 0;color:#B4B8BF;line-height:1.7;max-width:60ch;
   .steps li:nth-child(4){border-left:0;padding-left:0}
   .slots{grid-template-columns:repeat(2,minmax(0,1fr))}
   .bar-mid{display:none}
+  .route{display:none}
 }
 @media (max-width:1100px){
   .deal article{padding-right:32px}.deal article + article{padding-left:32px}
