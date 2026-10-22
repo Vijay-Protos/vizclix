@@ -1,12 +1,18 @@
 // VizClix 3D world: contour terrain, wireframe property, camera rig driven by one timeline value T.
-// T 0–1 hero · 1–2 intro · 2–3 the flight. From 3 the camera parks in a studio view and the drone
-// itself travels: it escorts the reader down the page and lands at the enquiry form (T 9).
+// T 0–1 hero · 1–2 intro · 2–3 the flight · 3–4 the camera settles into a studio view. From there
+// the drone is placed by the page itself (s.dock): it parks beside each heading and call to action
+// and lands at the enquiry form.
 import * as THREE from 'three';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 
 const INK = 0x0a0b0d;
 const BONE = 0xede8df;
 const EMBER = 0xff6b35;
+// Dusk: the sky the flight happens under. The horizon is also the fog, so the ground fades into
+// light rather than into black.
+const SKY_TOP = 0x0b111b;
+const HORIZON = 0x34465f;
+const GLOW = 0xd8774c;
 
 // ---- camera / drone keyframes (catmull-rom through these) ----
 // cam, look, pos, rot (pitch,yaw,roll), then fov, scale, throttle, gimbal pitch
@@ -23,28 +29,7 @@ const K = [
   // Yaw is deliberate: the drone faces what it is looking at. Front is +Z, so y=0 faces the
   // reader, y=PI faces away, y=PI/2 points screen-right, y=3PI/2 points screen-left.
   { T: 3.4, cam: [-2.6, 0.5, 9.6], look: [0, -0.7, 0], pos: [1.4, 0.6, 0],  rot: [0.05, 3.95, 0.02],  fov: 35, sc: 0.78, thr: 0.8,  gim: -0.7 },
-  { T: 4.0, cam: [0, 0, 10], look: [0, 0, 0], pos: [4.7, 2.45, 0],   rot: [0.09, 4.50, -0.04], fov: 35, sc: 0.50, thr: 0.7,  gim: -0.65 }, // Work: turned in, looking down over the grid
-  // The work grid is a wall of images across the full column, and the drone is behind the page.
-  // There is no lane through it — part way down, every pixel of the frame is a card — so holding
-  // a station there slices the drone on a card edge. It climbs out of shot instead, leaves the
-  // work to be read, and drops back in once the grid has passed.
-  { T: 4.12, cam: [0, 0, 10], look: [0, 0, 0], pos: [5.0, 5.0, 0],   rot: [0.13, 4.55, -0.03], fov: 35, sc: 0.48, thr: 1.0,  gim: -0.8 },  // climbing out over the grid
-  { T: 4.2, cam: [0, 0, 10], look: [0, 0, 0], pos: [5.6, 4.8, 0],    rot: [0.08, 4.60, 0.01],  fov: 35, sc: 0.42, thr: 0.9,  gim: -0.6 },  // holding above the frame
-  { T: 4.3, cam: [0, 0, 10], look: [0, 0, 0], pos: [6.1, 1.4, 0],    rot: [0.06, 4.65, 0.02],  fov: 35, sc: 0.30, thr: 0.6,  gim: -0.4 },  // Case study: holds the margin
-  { T: 4.6, cam: [0, 0, 10], look: [0, 0, 0], pos: [4.8, 2.35, 0],   rot: [0.06, 4.75, 0.03],  fov: 35, sc: 0.46, thr: 0.65, gim: -0.55 },
-  { T: 5.0, cam: [0, 0, 10], look: [0, 0, 0], pos: [4.85, 0.7, 0],   rot: [0.05, 4.95, 0.04],  fov: 35, sc: 0.44, thr: 0.7,  gim: -0.4 },  // Services: nose to the list, descending it
-  { T: 5.5, cam: [0, 0, 10], look: [0, 0, 0], pos: [4.7, -2.25, .4], rot: [0.08, 5.40, -0.03], fov: 35, sc: 0.50, thr: 0.75, gim: -0.3 },
-  { T: 5.8, cam: [0, 0, 10], look: [0, 0, 0], pos: [5.5, 1.0, -0.3],  rot: [0.05, 5.70, 0.03],  fov: 35, sc: 0.32, thr: 0.65, gim: -0.35 }, // The moves: stands off
-  { T: 6.1, cam: [0, .3, 10], look: [0, .2, 0], pos: [5.4, -1.3, 1.0], rot: [0.16, 6.00, 0.04], fov: 35, sc: 0.50, thr: 0.8,  gim: -0.25 }, // Perspective: a glimpse at the edge
-  { T: 6.6, cam: [0, 0, 10], look: [0, 0, 0], pos: [1.7, -2.0, 0.8], rot: [0.17, 6.85, -0.02], fov: 35, sc: 0.88, thr: 0.75, gim: -0.3 },  // daylight reveal, turned to face the reader
-  { T: 7.0, cam: [0, 0, 10], look: [0, 0, 0], pos: [-4.7, -2.5, 0],  rot: [0.04, 7.854, 0.06], fov: 35, sc: 0.42, thr: 0.9,  gim: -0.2 },  // Process: nose screen-right, a playhead
-  { T: 7.4, cam: [0, 0, 10], look: [0, 0, 0], pos: [4.6, -2.5, 0],   rot: [0.04, 7.854, -0.06], fov: 35, sc: 0.42, thr: 0.9, gim: -0.2 },  // ...holding that heading as it crosses
-  { T: 7.8, cam: [0, 0, 10], look: [0, 0, 0], pos: [6.0, 1.2, -0.5],  rot: [0.05, 8.60, 0.03],  fov: 35, sc: 0.32, thr: 0.7,  gim: -0.3 },  // Partner: stands off at the margin
-  { T: 8.2, cam: [0, 0, 10], look: [0, 0, 0], pos: [6.0, -1.4, -1],  rot: [0.04, 9.00, -0.05], fov: 35, sc: 0.30, thr: 0.6,  gim: -0.2 },  // Proof: quiet
-  { T: 8.6, cam: [0, 0, 10], look: [0, 0, 0], pos: [4.8, 2.45, -2.2], rot: [0.03, 9.30, 0.02], fov: 35, sc: 0.32, thr: 0.5,  gim: -0.25 }, // FAQ: withdrawn
-  { T: 9.0, cam: [0, 0, 10], look: [0, 0, 0], pos: [-4.6, -0.9, 0],  rot: [0.05, 10.4, 0.0],   fov: 35, sc: 0.44, thr: 0.6,  gim: -0.4 },  // Contact: returns, turning to face the reader
-  { T: 9.4, cam: [0, -.4, 10], look: [0, -.5, 0], pos: [-4.1, -1.9, .4],  rot: [0.0, 11.6, 0.0], fov: 35, sc: 0.6, thr: 0.22, gim: -0.1 }, // touchdown
-  { T: 9.7, cam: [0, -.4, 10], look: [0, -.5, 0], pos: [-4.1, -2.12, .4], rot: [0.0, 12.0, 0.0], fov: 35, sc: 0.6, thr: 0.0,  gim: 0.0 },  // landed, facing you
+  { T: 4.0, cam: [0, 0, 10], look: [0, 0, 0], pos: [4.7, 2.45, 0],   rot: [0.09, 4.50, -0.04], fov: 35, sc: 0.50, thr: 0.7,  gim: -0.65 }, // studio view: the page takes over the drone
 ];
 // Half the drone's span in world units at scale 1, rotor tip to rotor tip. Used to keep a
 // station inside the frame by the drone's own width rather than by its centre point.
@@ -88,54 +73,97 @@ void main(){
   vDist = distance(cameraPosition, w.xyz);
   gl_Position = projectionMatrix * viewMatrix * w;
 }`;
+// Every hand-written shader ends in colorspace_fragment. Colour uniforms arrive in linear space,
+// and without the conversion back to sRGB every mid-tone renders far darker than authored.
 const TERRAIN_FS = /* glsl */ `
-uniform vec3 uInk; uniform vec3 uBone; uniform vec3 uEmber; uniform vec3 uAlt;
+uniform vec3 uInk; uniform vec3 uBone; uniform vec3 uEmber; uniform vec3 uAlt; uniform vec3 uFog;
 uniform vec2 uPin; uniform float uTime; uniform float uFade;
 varying float vH; varying vec2 vTp; varying float vDist;
 float lineAA(float v, float w){ float f = abs(fract(v - .5) - .5) / max(fwidth(v), 1e-4); return 1.0 - clamp(f / w, 0.0, 1.0); }
 void main(){
-  float fogF = smoothstep(14.0, 96.0, vDist);
+  float fogF = smoothstep(10.0, 110.0, vDist);
   float lv = vH * 15.0;
   float relief = smoothstep(0.0015, 0.02, fwidth(lv)); // no contour lines on the flat plateau
-  float contour = (lineAA(lv, 1.0) * 0.20 + lineAA(lv / 5.0, 1.2) * 0.34) * relief;
+  float contour = (lineAA(lv, 1.0) * 0.24 + lineAA(lv / 5.0, 1.2) * 0.42) * relief;
   float gx = lineAA(vTp.x / 12.0, 1.0), gz = lineAA(vTp.y / 12.0, 1.0);
   float g2x = lineAA(vTp.x / 3.0, 1.0), g2z = lineAA(vTp.y / 3.0, 1.0);
   float closeness = 1.0 - smoothstep(6.0, 42.0, length(vTp - uPin));
-  float grid = max(gx, gz) * 0.16 + max(g2x, g2z) * 0.07 * closeness;
+  float grid = max(gx, gz) * 0.2 + max(g2x, g2z) * 0.09 * closeness;
   float r = length(vTp - uPin);
   float rr = abs(fract((r - uTime * 3.2) / 9.0) - .5);
   float ring = (1.0 - smoothstep(0.0, 0.035, rr)) * (1.0 - smoothstep(10.0, 46.0, r));
   float glow = exp(-r * 0.075);
-  vec3 col = uInk + vH * 0.012;
+  vec3 col = uInk + vH * 0.05;
   col = mix(col, uBone, contour * (1.0 - fogF));
   col = mix(col, uAlt, grid * (1.0 - fogF));
-  col += uEmber * (ring * 0.55 + glow * 0.10) * (1.0 - fogF * .7);
-  col = mix(col, uInk, fogF);
-  col = mix(uInk, col, uFade); // dissolves into the ground colour once the flight is over
+  col += uEmber * (ring * 0.55 + glow * 0.14) * (1.0 - fogF * .7);
+  col = mix(col, uFog, fogF);
+  col = mix(uFog, col, uFade); // dissolves into the sky once the flight is over
   gl_FragColor = vec4(col, 1.0);
+  #include <colorspace_fragment>
+}`;
+
+// The sky: dusk for the flight, warmest along the horizon ahead where the property stands. Once
+// the camera settles (uStudio) it calms into a soft gradient that lifts toward the foot of the
+// screen, so the page sits on atmosphere instead of flat black. uLit carries it to daylight.
+const SKY_VS = /* glsl */ `
+varying vec3 vDir;
+void main(){
+  vDir = position;
+  vec4 p = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+  gl_Position = p.xyww;
+}`;
+const SKY_FS = /* glsl */ `
+uniform vec3 uTop; uniform vec3 uHorizon; uniform vec3 uGlow; uniform vec3 uDay; uniform vec3 uFog;
+uniform float uStudio; uniform float uLit;
+varying vec3 vDir;
+void main(){
+  vec3 d = normalize(vDir);
+  float h = d.y;
+  float ahead = max(0.0, -d.z);
+  // at and below the horizon the sky IS the fog, so the far edge of the ground never shows
+  vec3 sky = mix(uFog, uTop, smoothstep(0.0, 0.28, h));
+  sky += uGlow * 0.4 * smoothstep(-0.01, 0.015, h) * exp(-max(h, 0.0) * 16.0) * (0.3 + 0.7 * ahead * ahead);
+  vec3 studio = mix(uTop, uHorizon * 0.5, smoothstep(0.3, -0.36, h)) + uGlow * 0.035 * smoothstep(0.0, -0.36, h);
+  vec3 col = mix(mix(sky, studio, uStudio), uDay, uLit);
+  gl_FragColor = vec4(col, 1.0);
+  #include <colorspace_fragment>
 }`;
 
 export function createWorld({ canvas, drone, quality }) {
   const renderer = new THREE.WebGLRenderer({ canvas, antialias: quality.aa, powerPreference: 'high-performance' });
   renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, quality.dpr));
   renderer.toneMapping = THREE.ACESFilmicToneMapping;
-  renderer.toneMappingExposure = 1.05;
+  renderer.toneMappingExposure = 1.15;
   renderer.setClearColor(INK, 1);
 
   const scene = new THREE.Scene();
-  scene.background = new THREE.Color(INK);
-  scene.fog = new THREE.Fog(INK, 16, 96);
+  const FOG_C = new THREE.Color(HORIZON).lerp(new THREE.Color(GLOW), 0.07);
+  const fogC = FOG_C.clone();
+  scene.fog = new THREE.Fog(fogC, 16, 110);
 
   const pmrem = new THREE.PMREMGenerator(renderer);
   scene.environment = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
-  scene.environmentIntensity = 0.75;
+  scene.environmentIntensity = 0.9;
 
-  // light: warm rim from behind, cool fill from the front-left
+  // light: warm rim from behind, cool fill from the front-left, and the dusk sky over all of it
   const rim = new THREE.DirectionalLight(0xffb48a, 2.4); rim.position.set(5, 3, -5); scene.add(rim);
   const fill = new THREE.DirectionalLight(0x9db7d6, 0.9); fill.position.set(-5, 2, 5); scene.add(fill);
   const top = new THREE.DirectionalLight(0xffffff, 1.0); top.position.set(0, 8, 2); scene.add(top);
+  const skyFill = new THREE.HemisphereLight(0x9fb4d4, 0x3a2a22, 0.8); scene.add(skyFill);
 
   const camera = new THREE.PerspectiveCamera(30, 1, 0.1, 400);
+
+  const skyMat = new THREE.ShaderMaterial({
+    vertexShader: SKY_VS, fragmentShader: SKY_FS, side: THREE.BackSide, depthWrite: false,
+    uniforms: {
+      uTop: { value: new THREE.Color(SKY_TOP) }, uHorizon: { value: new THREE.Color(HORIZON) },
+      uGlow: { value: new THREE.Color(GLOW) }, uDay: { value: new THREE.Color(BONE) },
+      uFog: { value: fogC }, uStudio: { value: 0 }, uLit: { value: 0 },
+    },
+  });
+  const sky = new THREE.Mesh(new THREE.SphereGeometry(10, 32, 16), skyMat);
+  sky.renderOrder = -1; sky.frustumCulled = false; scene.add(sky);
 
   // terrain
   const seg = quality.seg;
@@ -145,8 +173,8 @@ export function createWorld({ canvas, drone, quality }) {
     vertexShader: TERRAIN_VS, fragmentShader: TERRAIN_FS,
     uniforms: {
       uScroll: { value: 0 }, uPin: { value: pinT }, uTime: { value: 0 }, uFade: { value: 1 },
-      uInk: { value: new THREE.Color(INK) }, uBone: { value: new THREE.Color(BONE) },
-      uEmber: { value: new THREE.Color(EMBER) }, uAlt: { value: new THREE.Color(0x7c93ad) },
+      uInk: { value: new THREE.Color(0x141a23) }, uBone: { value: new THREE.Color(BONE) },
+      uEmber: { value: new THREE.Color(EMBER) }, uAlt: { value: new THREE.Color(0x7c93ad) }, uFog: { value: fogC },
     },
   });
   const terrain = new THREE.Mesh(tgeo, tmat); terrain.position.y = -6; terrain.frustumCulled = false; scene.add(terrain);
@@ -209,7 +237,7 @@ export function createWorld({ canvas, drone, quality }) {
       gl_Position = projectionMatrix * viewMatrix * wp;
     }`;
   const CITY_FS = `
-    uniform vec3 uInk; uniform vec3 uWin; uniform vec3 uCool; uniform float uFade; uniform float uLit; uniform float uNear;
+    uniform vec3 uInk; uniform vec3 uWin; uniform vec3 uCool; uniform vec3 uFog; uniform float uFade; uniform float uLit; uniform float uNear;
     varying vec3 vPos; varying vec3 vScale; varying float vSeed; varying vec3 vN; varying float vDist;
     float hash(vec2 p){ p = fract(p * vec2(443.897, 441.423)); p += dot(p, p + 19.19); return fract(p.x * p.y); }
     void main(){
@@ -228,24 +256,25 @@ export function createWorld({ canvas, drone, quality }) {
         float r = hash(cell + vSeed * 37.0);
         vec2 f = fract(uv / grid);
         float inWin = step(0.22, f.x) * step(f.x, 0.72) * step(0.26, f.y) * step(f.y, 0.78);
-        float occupancy = 0.12 + 0.3 * hash(vec2(vSeed, 3.7));
+        float occupancy = 0.18 + 0.34 * hash(vec2(vSeed, 3.7));
         float lit = step(1.0 - occupancy, r) * uLit;
-        col += uWin * inWin * lit * (0.3 + 0.32 * hash(cell + 7.1));
+        col += uWin * inWin * lit * (0.4 + 0.4 * hash(cell + 7.1));
       }
       // buildings that would sweep through the lens are dropped, and the ones just beyond
       // fade up out of the dark, so the approach never turns into a canyon of flat tiles
       if (vDist < uNear) discard;
-      col *= smoothstep(uNear, uNear + 23.0, vDist);
-      float fog = smoothstep(16.0, 120.0, vDist);
-      col = mix(col, uInk, fog);
-      gl_FragColor = vec4(mix(uInk, col, uFade), 1.0);
+      col = mix(uFog * 0.45, col, smoothstep(uNear, uNear + 23.0, vDist));
+      float fog = smoothstep(16.0, 130.0, vDist);
+      col = mix(col, uFog, fog * 0.85);
+      gl_FragColor = vec4(mix(uFog, col, uFade), 1.0);
+      #include <colorspace_fragment>
     }`;
   const cityCount = quality.city;
   const cityMat = new THREE.ShaderMaterial({
     vertexShader: CITY_VS, fragmentShader: CITY_FS,
     uniforms: {
       uInk: { value: new THREE.Color(0x0d1119) }, uWin: { value: new THREE.Color(0xffc79a) },
-      uCool: { value: new THREE.Color(0x27303f) }, uFade: { value: 1 }, uLit: { value: 1 }, uNear: { value: 19 },
+      uCool: { value: new THREE.Color(0x27303f) }, uFog: { value: fogC }, uFade: { value: 1 }, uLit: { value: 1 }, uNear: { value: 19 },
     },
   });
   const city = new THREE.InstancedMesh(new THREE.BoxGeometry(1, 1, 1), cityMat, cityCount);
@@ -285,7 +314,7 @@ export function createWorld({ canvas, drone, quality }) {
     vertexShader: CITY_VS, fragmentShader: CITY_FS,
     uniforms: {
       uInk: { value: new THREE.Color(0x151b24) }, uWin: { value: new THREE.Color(0xffd0a4) },
-      uCool: { value: new THREE.Color(0x36425a) }, uFade: { value: 0 }, uLit: { value: 1 }, uNear: { value: -40 },
+      uCool: { value: new THREE.Color(0x36425a) }, uFog: { value: fogC }, uFade: { value: 0 }, uLit: { value: 1 }, uNear: { value: -40 },
     },
   });
   const heroMesh = new THREE.InstancedMesh(new THREE.BoxGeometry(1, 1, 1), heroMat, boxes.length);
@@ -348,24 +377,36 @@ export function createWorld({ canvas, drone, quality }) {
   }
   resize();
 
-  const clamp01 = (x) => Math.min(1, Math.max(0, x));
-  // A phone has no empty margin to park in, so the escort becomes three beats: the flight,
-  // the daylight reveal and the landing. Between them the drone waits off the edge.
-  function phoneBeat(T) {
-    if (T < 3.3) return 1;
-    const reveal = clamp01((T - 6.3) / 0.3) * (1 - clamp01((T - 6.62) / 0.22));
-    return Math.max(reveal, clamp01((T - 8.85) / 0.4));
-  }
-  const bg = new THREE.Color();
-  const INK_C = new THREE.Color(INK), BONE_C = new THREE.Color(BONE);
+  // a warm pool of light that travels with the drone once it is escorting the page
+  const haloTex = (() => {
+    const c = document.createElement('canvas'); c.width = c.height = 128;
+    const x = c.getContext('2d'), gr = x.createRadialGradient(64, 64, 0, 64, 64, 64);
+    gr.addColorStop(0, 'rgba(255,255,255,1)'); gr.addColorStop(1, 'rgba(255,255,255,0)');
+    x.fillStyle = gr; x.fillRect(0, 0, 128, 128);
+    return new THREE.CanvasTexture(c);
+  })();
+  const halo = new THREE.Sprite(new THREE.SpriteMaterial({ map: haloTex, color: GLOW, transparent: true, opacity: 0, blending: THREE.AdditiveBlending, depthWrite: false, fog: false }));
+  halo.visible = false; scene.add(halo);
 
-  // s: { T, time, dt, light }  — light 0..1 crossfades the world to the daylight section
+  const clamp01 = (x) => Math.min(1, Math.max(0, x));
+  const BONE_C = new THREE.Color(BONE);
+  const wrapPI = (a) => Math.atan2(Math.sin(a), Math.cos(a));
+  // a screen pixel → the point under it on the z = 0 plane the escort flies in
+  const ray = new THREE.Vector3(), hit = new THREE.Vector3();
+  function toPlane(x, y) {
+    ray.set((x / innerWidth) * 2 - 1, 1 - (y / innerHeight) * 2, 0.5).unproject(camera).sub(camera.position).normalize();
+    hit.copy(camera.position).addScaledVector(ray, -camera.position.z / ray.z);
+  }
+
+  // s: { T, time, dt, light, dock }  — light 0..1 crossfades the world to the daylight section;
+  // dock is the escort pose from the page: screen x/y and width in px, plus attitude and landing
   function update(s) {
-    const T = Math.min(9.7, Math.max(0, s.T));
+    const T = Math.min(4, Math.max(0, s.T));
     const v = sample(T);
     const f = clamp01(T - 2);                 // the flight, 0 → 1
     const esc = clamp01((T - 3) / 0.35);      // hand-over from flight to escort
-    const land = clamp01((T - 9.05) / 0.45);  // descent onto the pad
+    const d = s.dock;
+    const land = d ? d.land : 0;              // descent onto the pad
     const portrait = aspect < 0.9;
     const scrollZ = T < 2 ? T * 6 : 12 + f * 78;
 
@@ -385,6 +426,7 @@ export function createWorld({ canvas, drone, quality }) {
     backMat.opacity = horizon * 0.95;
     // the district rises into view as the property nears, instead of crowding the opening
     cityMat.uniforms.uFade.value = (1 - esc) * clamp01((T - 1.65) / 0.7);
+    city.visible = cityMat.uniforms.uFade.value > 0.01;
     cityMat.uniforms.uLit.value = 1 - (s.light || 0) * 0.85;
     // the survey scaffolding steps back once the finished frame has arrived
     fillMat.opacity = 1 - reveal;
@@ -396,16 +438,16 @@ export function createWorld({ canvas, drone, quality }) {
     dust.material.opacity = 0.35 * (1 - esc);
     dust.visible = esc < 1;
 
-    // daylight section: the page ground, the fog and the exposure all cross over
+    // daylight section: the sky, the fog and the exposure all cross over
     const lit = s.light || 0;
-    bg.copy(INK_C).lerp(BONE_C, lit);
-    renderer.setClearColor(bg, 1);
-    scene.background = null;
-    scene.fog.color.copy(bg);
-    renderer.toneMappingExposure = lerp(1.05, 0.82, lit);
-    scene.environmentIntensity = lerp(0.75, 1.15, lit);
+    skyMat.uniforms.uStudio.value = esc;
+    skyMat.uniforms.uLit.value = lit;
+    fogC.copy(FOG_C).lerp(BONE_C, lit);
+    renderer.toneMappingExposure = lerp(1.15, 0.82, lit);
+    scene.environmentIntensity = lerp(0.9, 1.15, lit);
     rim.intensity = lerp(2.4, 1.5, lit);
     fill.intensity = lerp(0.9, 1.6, lit);
+    skyFill.intensity = lerp(0.8, 0.5, lit);
 
     // camera
     camera.position.set(v[0], v[1], v[2]);
@@ -415,35 +457,37 @@ export function createWorld({ canvas, drone, quality }) {
     camera.fov = v[12] * (portrait ? lerp(1.7, 1.15, esc) : 1);
     camera.updateProjectionMatrix();
     camera.lookAt(look);
+    camera.updateMatrixWorld();
+    sky.position.copy(camera.position);
 
-    // drone: station pose plus idle life. Narrow screens pull the stations inward.
+    // drone: the flight's keyframed pose hands over to the page's dock, plus idle life
     const g = drone.group;
     const t = s.time;
     const bob = lerp(0.06, 0.02, land);
     const speed = T > 2 && T < 3.2 ? 1 - f * 0.4 : 0.15;
-    let px = v[6], py = v[7], pscale = 1;
-    const halfW = Math.tan((camera.fov * Math.PI) / 360) * Math.max(1, v[2] - v[8]) * aspect;
-    if (portrait && esc > 0) {
-      const side = v[6] < 0 ? -1 : 1;
-      const beat = phoneBeat(T);
-      px = lerp(v[6], lerp(side * halfW * 2.4, side * halfW * 0.58, beat), esc);
-      py = lerp(v[7], v[7] * 0.7, esc);
-      pscale = lerp(1, 0.74, esc);
-    } else if (esc > 0) {
-      // A window taller than the frame the stations were drawn against has less world width at
-      // the drone's depth, so an authored margin position falls outside it and the drone leaves
-      // the shot. Hold it at the edge instead of pulling it in over the copy: the station wants
-      // the margin, and only the part that would overhang the frame is given up.
-      const edge = Math.max(1.2, halfW - (DRONE_HALF_W * v[13] + 0.22));
-      px = lerp(v[6], Math.sign(v[6]) * Math.min(Math.abs(v[6]), edge), esc);
+    let px = v[6], py = v[7], pz = v[8], sc = v[13];
+    let rx = v[9], ry = v[10], rz = v[11], thr = v[14], gim = v[15];
+    if (d && esc > 0) {
+      toPlane(d.x, d.y);
+      const perPx = (2 * Math.tan((camera.fov * Math.PI) / 360) * camera.position.z) / innerHeight;
+      px = lerp(px, hit.x, esc); py = lerp(py, hit.y, esc); pz = lerp(pz, 0, esc);
+      sc = lerp(sc, (d.w * perPx) / (2 * DRONE_HALF_W), esc);
+      rx = lerp(rx, d.pitch, esc); ry += wrapPI(d.yaw - ry) * esc; rz = lerp(rz, d.roll, esc);
+      thr = lerp(thr, d.thr, esc); gim = lerp(gim, d.gim, esc);
     }
-    g.position.set(px, py + Math.sin(t * 1.3) * bob, v[8]);
-    g.rotation.set(v[9] + Math.sin(t * 0.7) * 0.015 + speed * 0.05, v[10], v[11] + Math.sin(t * 0.9) * 0.025 * (1 - land));
-    const sc = v[13] * pscale;
+    g.position.set(px, py + Math.sin(t * 1.3) * bob, pz);
+    g.rotation.set(rx + Math.sin(t * 0.7) * 0.015 + speed * 0.05, ry, rz + Math.sin(t * 0.9) * 0.025 * (1 - land));
     g.scale.setScalar(sc);
-    drone.gimbal.rotation.x = v[15] + Math.sin(t * 0.6) * 0.03;
-    drone.update(s.dt, v[14]);
+    drone.gimbal.rotation.x = gim + Math.sin(t * 0.6) * 0.03;
+    drone.update(s.dt, thr);
     drone.setLedPulse(t);
+
+    halo.visible = esc > 0.01 && lit < 0.98;
+    if (halo.visible) {
+      halo.position.set(px, py, pz - 1.5);
+      halo.scale.setScalar(sc * 7.5);
+      halo.material.opacity = 0.2 * esc * (1 - lit);
+    }
 
     // ground scanner: only over the property, during the flight
     const scanOn = (1 - esc) * clamp01((T - 1.4) / 0.6);
@@ -457,7 +501,7 @@ export function createWorld({ canvas, drone, quality }) {
     // landing pad under the touchdown point
     pad.visible = land > 0.01;
     if (pad.visible) {
-      pad.position.set(g.position.x, py - 0.42 * sc - 0.02, v[8]);
+      pad.position.set(g.position.x, py - 0.42 * sc - 0.02, pz);
       pad.scale.setScalar(sc * lerp(1.6, 1, land));
       padMat.opacity = land * (lit > 0.5 ? 0.9 : 0.75) * (0.75 + 0.25 * Math.sin(t * 2.4));
     }

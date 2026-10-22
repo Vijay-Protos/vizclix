@@ -36,6 +36,11 @@
 
 <a class="skip-link" href="#work">Skip the flight</a>
 
+<!-- the drone's viewfinder: frames whichever heading or call to action it has stopped at -->
+<div class="reticle" id="reticle" aria-hidden="true"></div>
+<!-- route rail: a waypoint per section, filled in by main.js -->
+<nav class="route" id="route" aria-label="Sections"></nav>
+
 <!-- header: metadata bar -->
 <header class="bar" id="bar">
   <a href="#top" class="brand" aria-label="VizClix home">
@@ -480,7 +485,7 @@
 
 </main>
 
-<footer class="foot">
+<footer class="foot" data-section="/ 15 — Let’s Talk">
   <div class="wrap">
     <div class="foot-word" aria-hidden="true">VizClix<span class="dot">.</span></div>
     <div class="foot-row">

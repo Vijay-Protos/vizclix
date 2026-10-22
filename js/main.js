@@ -71,11 +71,24 @@ function tickClock() {
 }
 tickClock(); setInterval(tickClock, 20000);
 
+// route rail: one waypoint per section after the flight, built from the sections themselves
+const route = $('#route');
+const routeLinks = $$('.sec[data-section]').map((s) => {
+  const a = document.createElement('a');
+  a.href = '#' + s.id;
+  a.innerHTML = `<i aria-hidden="true"></i><span>${s.dataset.section.split('— ')[1]}</span>`;
+  route.append(a);
+  return a;
+});
+
 const sectionIO = new IntersectionObserver((es) => {
   es.forEach((e) => {
     if (!e.isIntersecting) return;
     barSection.textContent = e.target.dataset.section || '';
-    bar.classList.toggle('on-light', e.target.classList.contains('light'));
+    const onLight = e.target.classList.contains('light');
+    bar.classList.toggle('on-light', onLight);
+    route.classList.toggle('on-light', onLight);
+    routeLinks.forEach((a) => a.classList.toggle('on', a.hash === '#' + e.target.id));
   });
 }, { rootMargin: '-45% 0px -50% 0px' });
 $$('[data-section]').forEach((s) => sectionIO.observe(s));
@@ -160,41 +173,22 @@ const light = $('#perspective'), lightLast = $('#process');
 const progress = $('#progress-fill');
 let introTop = 0, introH = 1, flightTop = 1, flightH = 1, vh = innerHeight, flightEnd = 1;
 
-// Scroll → timeline. Stations below T=3 are the flight; above it each section owns a stretch of
-// the timeline, so the drone always arrives with its section however long the content grows.
+// Scroll → timeline. T 0–3 is the hero, intro and flight; 3–4 settles the camera into the studio
+// view as Work arrives. From there the drone is placed by the escort below, not by the timeline.
 let stations = [];
 function layout() {
   vh = innerHeight;
   introTop = intro.offsetTop; introH = intro.offsetHeight;
   flightTop = flight.offsetTop; flightH = flight.offsetHeight;
   flightEnd = flightTop + flightH;
-  // offsetTop is measured against the offsetParent, which for anything inside a section is the
-  // section itself — so sum the chain, or a station pinned to nested content lands a screen early.
-  const docTop = (el) => { let t = 0; for (let n = el; n; n = n.offsetParent) t += n.offsetTop; return t; };
-  const mid = (el, k = 0.5) => docTop(el) + el.offsetHeight * k - vh * 0.5;
-  const raw = [
-    [0, 0], [introTop, 1], [flightTop, 2], [flightEnd - vh, 3],
-    [mid($('#work'), 0), 3.4], [mid($('#work')), 4],
-    // the climb out of shot is pinned to the grid itself, so it clears whatever the grid grows to
-    [mid($('.cards'), 0.1), 4.12], [mid($('.cards'), 1), 4.2],
-    [mid($('#study'), 0.5), 4.3],
-    [mid($('#services'), 0), 4.6], [mid($('#services')), 5], [mid($('#services'), 1), 5.5],
-    [mid($('#grammar'), 0.5), 5.8],
-    [mid(light, 0.35), 6.1], [mid(light, 1), 6.6],
-    [mid($('#process'), 0.25), 7], [mid($('#process'), 0.9), 7.4],
-    [mid($('#partner'), 0.5), 7.8],
-    [mid($('#proof'), 0.5), 8.2], [mid($('#faq'), 0.5), 8.6],
-    [mid($('#contact'), 0.1), 9], [mid($('#contact'), 0.75), 9.4],
-    [document.documentElement.scrollHeight - vh, 9.7],
-  ];
+  const raw = [[0, 0], [introTop, 1], [flightTop, 2], [flightEnd - vh, 3], [flightEnd - vh * 0.4, 4]];
   stations = [];
   for (const [y, T] of raw) {                       // keep y strictly increasing
     const prev = stations[stations.length - 1];
     stations.push([prev ? Math.max(y, prev[0] + 1) : y, T]);
   }
+  measureEscort();
 }
-layout();
-addEventListener('load', layout);
 
 function timelineT(y) {
   if (y <= stations[0][0]) return 0;
@@ -207,6 +201,127 @@ function timelineT(y) {
   }
   return stations[stations.length - 1][1];
 }
+
+/* ---------- the escort: the drone parks beside each heading and call to action ----------
+   Docks come from the real layout. For each anchor, the closest spot beside it where a drone-sized
+   footprint touches no text, image or control. The drone rests there in page space, so it travels
+   with its heading as the page scrolls; it flies to the next dock as that one comes up the screen
+   and slips out to the side when the one it holds leaves. Where it cannot sit beside an anchor
+   without covering copy (the drone is always behind the page), it flies past instead. */
+const reticle = $('#reticle');
+let docks = [], droneW = 180;
+function measureEscort() {
+  const sy = scrollY, vw = innerWidth;
+  const phone = vw < 860;
+  droneW = phone ? Math.min(150, vw * 0.36) : clamp(vw * 0.13, 150, 230);
+  const dw = droneW, dh = droneW * 0.46;
+  const edge = phone ? 10 : 28;
+  const obs = [];
+  const add = (r) => { if (r.width && r.height) obs.push([r.left - 12, r.top + sy - 12, r.right + 12, r.bottom + sy + 12]); };
+  const range = document.createRange();
+  const rects = (el) => { range.selectNodeContents(el); return [...range.getClientRects()]; };
+  for (const s of $$('.sec, .foot')) {
+    const tw = document.createTreeWalker(s, NodeFilter.SHOW_TEXT, { acceptNode: (n) => (n.nodeValue.trim() ? 1 : 2) });
+    for (let n; (n = tw.nextNode());) rects(n).forEach(add);
+    $$('img,svg,.card,.slot,.cta-solid,.chip span,.cities li,input,select,textarea', s).forEach((el) => add(el.getBoundingClientRect()));
+  }
+  // the case-study image is sticky, so it can be anywhere down its column
+  const shot = $('.study-shot');
+  if (shot && getComputedStyle(shot).position === 'sticky') {
+    const a = shot.getBoundingClientRect(), b = shot.parentElement.getBoundingClientRect();
+    add({ left: a.left, right: a.right, top: b.top, bottom: b.bottom, width: 1, height: 1 });
+  }
+  const free = (x, y) => {
+    const l = x - dw / 2, r = x + dw / 2, t = y - dh / 2, b = y + dh / 2;
+    if (l < edge || r > vw - edge) return false;
+    for (const o of obs) if (o[0] < r && o[2] > l && o[1] < b && o[3] > t) return false;
+    return true;
+  };
+  docks = $$('.sec-head .h2, .more .link-arrow, .study-block .link-arrow, .fsub .cta').map((el) => {
+    const lines = (el.matches('.h2') ? rects(el) : [el.getBoundingClientRect()])
+      .filter((r) => r.width > 1).map((r) => [r.left, r.top + sy, r.right, r.bottom + sy]);
+    if (!lines.length) return null;
+    const A = lines.reduce((u, L) => [Math.min(u[0], L[0]), Math.min(u[1], L[1]), Math.max(u[2], L[2]), Math.max(u[3], L[3])]);
+    const cands = [];
+    for (const L of lines) {
+      const cy = (L[1] + L[3]) / 2;
+      for (let k = 0; k < 8; k++) cands.push([L[2] + 24 + dw / 2 + k * dw * 0.25, cy], [L[0] - 24 - dw / 2 - k * dw * 0.25, cy]);
+    }
+    for (let k = 0; k < 10; k++) {
+      const x = A[0] + dw / 2 + k * dw * 0.3;
+      cands.push([x, A[1] - 20 - dh / 2], [x, A[3] + 20 + dh / 2]);
+    }
+    // nearest free spot to the anchor's own text; the right-hand side reads best, so it wins ties
+    let best = null, bs = vw * 0.3;
+    for (const [x, y] of cands) {
+      if (!free(x, y)) continue;
+      const gx = Math.max(A[0] - (x + dw / 2), x - dw / 2 - A[2], 0);
+      const gy = Math.max(A[1] - (y + dh / 2), y - dh / 2 - A[3], 0);
+      const sc = gx + gy * 1.6 + (x < A[0] ? 60 : 0);
+      if (sc < bs) { bs = sc; best = [x, y]; }
+    }
+    const [x, y] = best || [(A[0] + A[2]) / 2, (A[1] + A[3]) / 2];
+    // face the anchor, turned three-quarters toward the reader so the camera reads
+    const face = x > A[2] ? Math.PI * 1.5 + 0.6 : x < A[0] ? Math.PI / 2 - 0.6 : 0.3;
+    return { el, x, y, ok: !!best, face, side: x > vw / 2 ? 1 : -1, frame: A };
+  }).filter(Boolean);
+}
+
+const E = { x: 0, y: 0, vx: 0, vy: 0, yaw: Math.PI * 1.5, on: null, init: false };
+const wrapPI = (a) => Math.atan2(Math.sin(a), Math.cos(a));
+function escort(y, dt) {
+  const vw = innerWidth;
+  // the dock in charge: the last one that has come up past 72% of the screen
+  let i = -1;
+  for (let k = 0; k < docks.length && docks[k].y - y <= vh * 0.72; k++) i = k;
+  const d = docks[i];
+  const last = i === docks.length - 1;
+  const out = (side, row) => [side > 0 ? vw + droneW : -droneW, row];
+  let [tx, ty] = out(1, y + vh * 0.42);                 // before the first dock: waiting off to the side
+  let held = false;
+  if (d && d.ok && (last || d.y - y > vh * 0.16)) { tx = d.x; ty = d.y; held = true; }
+  else if (d) [tx, ty] = out(d.side, d.y);              // its dock is leaving, or has no clear spot
+  const land = held && last ? smooth(clamp((vh * 0.66 - (d.y - y)) / (vh * 0.22))) : 0;
+  ty += land * droneW * 0.06;
+  // a jump (menu, rail) would streak the drone across the page: re-enter from the side instead
+  if (!E.init || Math.abs(ty - E.y) > vh * 1.5) {
+    [E.x, E.y] = E.init ? out(d ? d.side : 1, ty) : [tx, ty];
+    E.vx = E.vy = 0; E.init = true;
+  }
+  // a critically damped spring in page space: arrives without overshoot, leaves without a jolt
+  const w = 3.6;
+  E.vx += (w * w * (tx - E.x) - 2 * w * E.vx) * dt; E.x += E.vx * dt;
+  E.vy += (w * w * (ty - E.y) - 2 * w * E.vy) * dt; E.y += E.vy * dt;
+  const move = clamp(Math.hypot(E.vx, E.vy) / 650);
+  const travel = E.vx >= 0 ? Math.PI / 2 : Math.PI * 1.5;
+  let yawT = held ? d.face + wrapPI(travel - d.face) * move : travel;
+  yawT += wrapPI(0 - yawT) * land;                       // landed, it turns to face you
+  E.yaw += wrapPI(yawT - E.yaw) * (1 - Math.exp(-dt * 3.2));
+  const fwd = E.vx * Math.sin(E.yaw), side = E.vx * Math.cos(E.yaw);
+  // reticle: frames the anchor once the drone has settled beside it
+  const settled = held && Math.hypot(tx - E.x, ty - E.y) < 40 && land < 0.5;
+  const on = settled ? d : null;
+  if (on !== E.on) {
+    E.on = on;
+    if (on) {
+      const [l, t, r, b] = on.frame;
+      Object.assign(reticle.style, { left: l - 16 + 'px', top: t - 12 + 'px', width: r - l + 32 + 'px', height: b - t + 24 + 'px' });
+    }
+    reticle.classList.toggle('on', !!on);
+  }
+  return {
+    x: E.x, y: E.y - y, w: droneW, yaw: E.yaw,
+    pitch: 0.05 + clamp(fwd / 1100, -1, 1) * 0.3,
+    roll: -clamp(side / 1100, -1, 1) * 0.35,
+    thr: lerp(0.62 + move * 0.38 + clamp(-E.vy / 900) * 0.15, 0, land),
+    gim: -0.3, land,
+  };
+}
+
+layout();
+addEventListener('load', layout);
+// FAQ answers opening, the form switching paths: anything that moves copy moves the docks
+new ResizeObserver(() => layout()).observe(document.body);
 
 // The world only crosses to daylight once the daylight section genuinely owns the screen.
 // Tying it to how much of the viewport the section covers keeps the change off its neighbours,
@@ -237,6 +352,7 @@ function updateDom(T, y) {
   if (progress) progress.style.transform = 'scaleX(' + clamp(y / Math.max(1, document.documentElement.scrollHeight - vh)).toFixed(4) + ')';
   // header solid once past the flight
   bar.classList.toggle('solid', y > flightEnd - vh * 0.6);
+  route.classList.toggle('show', y > flightEnd - vh * 0.6);
   // word-by-word statement
   if (scrubWords.length) {
     const p = clamp((y - introTop - vh * 0.1) / Math.max(1, introH - vh * 1.2));
@@ -310,7 +426,7 @@ function loop(now) {
       // at full daylight the next dark section is already on screen, and left transparent it
       // shows bone through its own copy. Only true ink lets them go back to the canvas.
       root.classList.toggle('crossing', mix > 0.002);
-      world.update({ T, time, dt, light: mix });
+      world.update({ T, time, dt, light: mix, dock: T >= 3 ? escort(y, dt) : null });
       // adaptive quality: if the first second is slow, drop the pixel ratio once
       if (++frames > 20 && frames < 90) { slow += dt > 0.032 ? 1 : 0; }
       if (frames === 90 && slow > 40 && !dprDropped) { dprDropped = true; world.renderer.setPixelRatio(1); world.resize(); }
@@ -323,5 +439,5 @@ addEventListener('resize', () => { layout(); if (world) { world.resize(); if (re
 
 boot3D().then(() => {
   requestAnimationFrame((n) => { last = n; loop(n); });
-  if (location.search.includes('debug')) window.__vc = { get T() { return timelineT(cur); }, get info() { return world && world.info(); }, get frames() { return frames; }, drone, world };
+  if (location.search.includes('debug')) window.__vc = { get T() { return timelineT(cur); }, get info() { return world && world.info(); }, get frames() { return frames; }, get docks() { return docks; }, drone, world };
 });
