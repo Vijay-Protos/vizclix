@@ -43,6 +43,11 @@ A visitor can override it from the hero prompt or the footer switch.
 `assets/feed/*.mp4` — stock placeholders from Mixkit (Mixkit Stock Video Free Licence),
 shown in the drone's camera feed until VizClix footage replaces them.
 
+`assets/film/` — the sections 1-5 background: one shot cut and graded in After Effects
+(`tools/film/build.jsx`) from Mixkit stock clips 41375, 42041 and 42342 (Mixkit Stock Video
+Free Licence) and the Polycrayons render of Mahavir Springs, exported as WebP frames and scrubbed
+by scroll. The stock clips are placeholders for VizClix's own footage.
+
 `assets/city/thane-district.json` — building footprints, roads and lakes of Thane West from
 OpenStreetMap (© OpenStreetMap contributors, ODbL), built by `tools/district.py`. Heights are
 mapped where OSM has them and estimated from footprint size where it does not.

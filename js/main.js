@@ -20,11 +20,11 @@ if (!reduce) import('../vendor/lenis/lenis.mjs').then(({ default: Lenis }) => { 
 
 /* ---------- loader: counts real milestones ---------- */
 const loader = $('#loader'), loaderN = $('#loader-n'), loaderBar = $('#loader-bar');
-const steps = { fonts: false, engine: false, model: false, frame: false };
+const steps = { fonts: false, engine: false, model: false, frame: false, film: false };
 let shown = 0, loaderDone = false;
 const minShow = performance.now() + 500;
 function loaderTick() {
-  const goal = Object.values(steps).filter(Boolean).length / 4 * 100;
+  const goal = Object.values(steps).filter(Boolean).length / Object.keys(steps).length * 100;
   shown += (goal - shown) * 0.2;
   if (goal === 100 && shown > 99.2) shown = 100;
   loaderN.textContent = String(Math.round(shown)).padStart(3, '0');
@@ -589,6 +589,54 @@ $$('.ba').forEach((ba) => {
   r.addEventListener('input', () => ba.style.setProperty('--split', r.value + '%'));
 });
 
+/* ---------- the film: sections 1-5 play a shot cut in After Effects, scrubbed by scroll ----------
+   tools/film/ builds it from aerial clips and the property render; the frames are in assets/film/
+   (l/ 1600 px, s/ 960 px for phones). They load coarse to fine, every 8th first, and until a frame
+   has arrived the nearest loaded one is drawn. The 3D drone flies over it. */
+const FILM_N = 183, FILM_FPS = 12;
+// scroll timeline T -> seconds into the film; the fog-bank cuts land between the flight chapters
+const FILM_MAP = [[0, 0], [1.85, 3.45], [2.05, 5.3], [2.32, 7.2], [2.42, 9.05], [2.66, 10.95], [2.76, 12.8], [3, 15.17]];
+const plateEl = $('#plate');
+const film = (() => {
+  const ctx = plateEl.getContext('2d');
+  const dir = 'assets/film/' + (innerWidth < 900 ? 's/' : 'l/');
+  const frames = new Array(FILM_N);
+  const order = [0, FILM_N - 1];
+  for (const step of [8, 4, 2, 1]) for (let i = 0; i < FILM_N; i += step) if (!order.includes(i)) order.push(i);
+  let shown = -1, inflight = 0, next = 0;
+  function pump() {
+    while (inflight < 6 && next < order.length) {
+      const i = order[next++], im = new Image();
+      inflight++;
+      im.onload = () => { frames[i] = im; inflight--; if (i === 0) steps.film = true; shown = -1; pump(); };
+      im.onerror = () => { inflight--; pump(); };
+      im.src = dir + String(i).padStart(3, '0') + '.webp';
+    }
+  }
+  pump();
+  function size() {
+    const d = Math.min(devicePixelRatio || 1, 1.5);
+    plateEl.width = Math.round(innerWidth * d); plateEl.height = Math.round(innerHeight * d); shown = -1;
+  }
+  size(); addEventListener('resize', size);
+  return {
+    get ready() { return !!frames[0]; },
+    draw(T) {
+      let t = FILM_MAP[FILM_MAP.length - 1][1];
+      for (let i = 1; i < FILM_MAP.length; i++) {
+        if (T <= FILM_MAP[i][0]) { const [a, ta] = FILM_MAP[i - 1], [b, tb] = FILM_MAP[i]; t = ta + (tb - ta) * clamp((T - a) / (b - a)); break; }
+      }
+      const want = Math.min(FILM_N - 1, Math.round(t * FILM_FPS));
+      let j = -1;
+      for (let d = 0; d < FILM_N && j < 0; d++) j = frames[want - d] ? want - d : frames[want + d] ? want + d : -1;
+      if (j < 0 || j === shown) return;
+      shown = j;
+      const im = frames[j], s = Math.max(plateEl.width / im.width, plateEl.height / im.height), w = im.width * s, h = im.height * s;
+      ctx.drawImage(im, (plateEl.width - w) / 2, (plateEl.height - h) / 2, w, h);
+    },
+  };
+})();
+
 /* ---------- 3D ---------- */
 let world = null, drone = null, lastDock = null;
 async function boot3D() {
@@ -640,11 +688,15 @@ function loop(now) {
   if (Math.abs(y - cur) < 0.1) cur = y;
   const T = timelineT(cur);
   updateDom(T, cur);
+  film.draw(reduce ? 0 : T);
+  // the film gives way to the page's dusk sky as the escort begins
+  const po = reduce ? clamp(1 - y / (vh * 0.9)) : 1 - clamp((T - 3) / 0.3);
+  if (plateEl.style.opacity !== String(po)) plateEl.style.opacity = String(po);
 
   if (world && !root.classList.contains('no-gl')) {
     if (reduce) {
       canvas.style.opacity = String(clamp(1 - y / (vh * 0.9)));
-      if (!loop.drawn) { world.update({ T: 0, time: 1, dt: 0, light: 0 }); loop.drawn = true; }
+      if (!loop.drawn && film.ready) { world.update({ T: 0, time: 1, dt: 0, light: 0, film: true }); loop.drawn = true; }
     } else if (!document.hidden) {
       const mix = lightMix(y);
       // Whenever the canvas is anything but full ink, dark sections hold their own background:
@@ -657,8 +709,8 @@ function loop(now) {
       const front = T >= 3.4;
       root.classList.toggle('front', front);
       const intro = introAt ? clamp((now - introAt) / 2600) : 0;
-      world.update({ T, time, dt, light: mix, dock, hour: hourAt(y), spin, front, intro });
-      if (front) paintSky(world.skyStops(mix), dock);
+      world.update({ T, time, dt, light: mix, dock, hour: hourAt(y), spin, front, intro, film: film.ready });
+      if (T >= 2.9) paintSky(world.skyStops(mix), front ? dock : null);
       if (sound && sound.on) {
         const seen = !dock || (dock.x > -60 && dock.x < innerWidth + 60 && dock.y > -60 && dock.y < vh + 60);
         sound.update(dock ? dock.thr : 0.75 + 0.25 * clamp(T - 2), seen ? 1 : 0.15);
