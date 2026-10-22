@@ -69,7 +69,8 @@ const bar = $('#bar'), barSection = $('#bar-section'), clock = $('#clock');
 function tickClock() {
   clock.textContent = 'Local ' + new Date().toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }).toLowerCase();
 }
-tickClock(); setInterval(tickClock, 20000);
+// with motion on, the clock tells the shoot day instead (updateDom); without it, the local time
+if (reduce) { tickClock(); setInterval(tickClock, 20000); }
 
 // route rail: one waypoint per section after the flight, built from the sections themselves
 const route = $('#route');
@@ -187,7 +188,34 @@ function layout() {
     const prev = stations[stations.length - 1];
     stations.push([prev ? Math.max(y, prev[0] + 1) : y, T]);
   }
+  // the shoot day: each section's hour takes over as its top reaches 40% of the screen. Hours run
+  // on through the night (19 → 29 = 05:00), so the page never interpolates backwards in time.
+  // The night between the flight and the morning shoot passes as a time-lapse in the last half
+  // screen before Work, not spread across the whole flight.
+  let last = 0;
+  hours = [];
+  for (const s of $$('[data-hour]')) {
+    let h = +s.dataset.hour;
+    while (h < last) h += 24;
+    const y = Math.max(0, s.offsetTop - vh * 0.4);
+    if (h - last > 6) hours.push([y - vh * 0.5, last + 0.3]);
+    hours.push([y, h]);
+    last = h;
+  }
   measureEscort();
+}
+let hours = [];
+function hourAt(y) {
+  let i = 0;
+  while (i < hours.length - 2 && y > hours[i + 1][0]) i++;
+  const [y0, h0] = hours[i], [y1, h1] = hours[i + 1];
+  return (h0 + (h1 - h0) * clamp((y - y0) / Math.max(1, y1 - y0))) % 24;
+}
+const HOUR_NAMES = [[0, 'Night'], [4.5, 'Before Dawn'], [5.4, 'Blue Hour'], [6.2, 'Sunrise'], [7.5, 'Morning'], [10.5, 'Midday'], [14.5, 'Afternoon'], [16.6, 'Golden Hour'], [18.2, 'Dusk'], [19.2, 'Night']];
+function hourLabel(h) {
+  const name = HOUR_NAMES.filter(([at]) => h >= at).pop()[1];
+  const m = Math.floor(h * 60) % 1440;
+  return `Light ${String(Math.floor(m / 60)).padStart(2, '0')}:${String(m % 60).padStart(2, '0')} · ${name}`;
 }
 
 function timelineT(y) {
@@ -209,7 +237,25 @@ function timelineT(y) {
    and slips out to the side when the one it holds leaves. Where it cannot sit beside an anchor
    without covering copy (the drone is always behind the page), it flies past instead. */
 const reticle = $('#reticle');
-let docks = [], droneW = 180;
+let docks = [], droneW = 180, feedW = 225, feedH = 152;
+
+// the drone's camera feed: one panel, re-pointed at whatever the current stop is filming
+const feedEl = $('#feed'), feedVid = $('video', feedEl), feedImg = $('img', feedEl);
+const feedLabel = $('.feed-label', feedEl), feedTc = $('.feed-tc', feedEl);
+function showFeed(f) {
+  feedEl.classList.toggle('on', !!f);
+  if (!f) { feedVid.pause(); return; }
+  const kind = f.src === 'plan' ? 'plan' : /\.mp4$/.test(f.src) ? 'video' : 'image';
+  feedEl.dataset.kind = kind;
+  feedLabel.textContent = 'Feed — ' + f.label + (kind === 'plan' ? '' : ' · Stock');
+  if (kind === 'video') {
+    if (!feedVid.src.endsWith(f.src)) feedVid.src = f.src;
+    feedVid.play().catch(() => { /* autoplay refused: the still frame stays */ });
+  } else {
+    feedVid.pause();
+    if (kind === 'image') feedImg.src = f.src;
+  }
+}
 function measureEscort() {
   const sy = scrollY, vw = innerWidth;
   const phone = vw < 860;
@@ -221,7 +267,10 @@ function measureEscort() {
   const range = document.createRange();
   const rects = (el) => { range.selectNodeContents(el); return [...range.getClientRects()]; };
   for (const s of $$('.sec, .foot')) {
-    const tw = document.createTreeWalker(s, NodeFilter.SHOW_TEXT, { acceptNode: (n) => (n.nodeValue.trim() ? 1 : 2) });
+    // a phone's single column has no margin, but the outlined section word above each heading is
+    // pure decoration: there the drone and its feed may sit over it
+    const skip = (n) => !n.nodeValue.trim() || (phone && n.parentElement.closest('.bigword'));
+    const tw = document.createTreeWalker(s, NodeFilter.SHOW_TEXT, { acceptNode: (n) => (skip(n) ? 2 : 1) });
     for (let n; (n = tw.nextNode());) rects(n).forEach(add);
     $$('img,svg,.card,.slot,.cta-solid,.chip span,.cities li,input,select,textarea', s).forEach((el) => add(el.getBoundingClientRect()));
   }
@@ -231,8 +280,12 @@ function measureEscort() {
     const a = shot.getBoundingClientRect(), b = shot.parentElement.getBoundingClientRect();
     add({ left: a.left, right: a.right, top: b.top, bottom: b.bottom, width: 1, height: 1 });
   }
-  const free = (x, y) => {
-    const l = x - dw / 2, r = x + dw / 2, t = y - dh / 2, b = y + dh / 2;
+  // a footprint is the drone, plus (when it carries one) its camera feed hanging beneath it
+  feedW = Math.round(dw * (phone ? 1.1 : 1.25)); feedH = Math.round(feedW * 9 / 16) + 26;
+  const free = (x, y, feed) => {
+    // the feed is a solid panel in front of the page, so it keeps a wider berth than the drone
+    const w = feed ? Math.max(dw, feedW) + 16 : dw;
+    const l = x - w / 2, r = x + w / 2, t = y - dh / 2, b = y + dh / 2 + (feed ? 8 + feedH + 8 : 0);
     if (l < edge || r > vw - edge) return false;
     for (const o of obs) if (o[0] < r && o[2] > l && o[1] < b && o[3] > t) return false;
     return true;
@@ -249,21 +302,31 @@ function measureEscort() {
     }
     for (let k = 0; k < 10; k++) {
       const x = A[0] + dw / 2 + k * dw * 0.3;
-      cands.push([x, A[1] - 20 - dh / 2], [x, A[3] + 20 + dh / 2]);
+      // above it (drone alone, and drone with its feed stacked beneath), and below it
+      cands.push([x, A[1] - 20 - dh / 2], [x, A[1] - 20 - dh / 2 - 8 - feedH], [x, A[3] + 20 + dh / 2]);
     }
     // nearest free spot to the anchor's own text; the right-hand side reads best, so it wins ties
-    let best = null, bs = vw * 0.3;
-    for (const [x, y] of cands) {
-      if (!free(x, y)) continue;
-      const gx = Math.max(A[0] - (x + dw / 2), x - dw / 2 - A[2], 0);
-      const gy = Math.max(A[1] - (y + dh / 2), y - dh / 2 - A[3], 0);
-      const sc = gx + gy * 1.6 + (x < A[0] ? 60 : 0);
-      if (sc < bs) { bs = sc; best = [x, y]; }
-    }
+    const pick = (feed) => {
+      let best = null, bs = vw * 0.3 + (feed ? 400 : 0);
+      for (const [x, y] of cands) {
+        if (!free(x, y, feed)) continue;
+        const gx = Math.max(A[0] - (x + dw / 2), x - dw / 2 - A[2], 0);
+        const foot = y + dh / 2 + (feed ? 8 + feedH : 0);           // bottom of the whole footprint
+        const gy = Math.max(A[1] - foot, y - dh / 2 - A[3], 0);
+        // below the anchor means sitting in the content that follows it: last resort for a feed
+        const sc = gx + gy * 1.6 + (x < A[0] ? 60 : 0) + (feed && y - dh / 2 > A[3] ? 400 : 0);
+        if (sc < bs) { bs = sc; best = [x, y]; }
+      }
+      return best;
+    };
+    // a section heading carries its camera feed if there is room for it; otherwise just the drone
+    const spec = el.matches('.h2') && el.closest('.sec').dataset.feed;
+    let best = spec && pick(true), feed = null;
+    if (best) { const [src, label] = spec.split('|'); feed = { src, label }; } else best = pick(false);
     const [x, y] = best || [(A[0] + A[2]) / 2, (A[1] + A[3]) / 2];
     // face the anchor, turned three-quarters toward the reader so the camera reads
     const face = x > A[2] ? Math.PI * 1.5 + 0.6 : x < A[0] ? Math.PI / 2 - 0.6 : 0.3;
-    return { el, x, y, ok: !!best, face, side: x > vw / 2 ? 1 : -1, frame: A };
+    return { el, x, y, ok: !!best, face, side: x > vw / 2 ? 1 : -1, frame: A, feed };
   }).filter(Boolean);
 }
 
@@ -308,6 +371,13 @@ function escort(y, dt) {
       Object.assign(reticle.style, { left: l - 16 + 'px', top: t - 12 + 'px', width: r - l + 32 + 'px', height: b - t + 24 + 'px' });
     }
     reticle.classList.toggle('on', !!on);
+    showFeed(on && on.feed);
+  }
+  if (on && on.feed) {
+    feedEl.style.transform = `translate(${(E.x - feedW / 2).toFixed(1)}px, ${(E.y - y + droneW * 0.23 + 8).toFixed(1)}px)`;
+    feedEl.style.width = feedW + 'px';
+    const s = Math.floor(E.t = (E.t || 0) + dt);
+    feedTc.textContent = `00:${String(Math.floor(s / 60)).padStart(2, '0')}:${String(s % 60).padStart(2, '0')}`;
   }
   return {
     x: E.x, y: E.y - y, w: droneW, yaw: E.yaw,
@@ -353,6 +423,10 @@ function updateDom(T, y) {
   // header solid once past the flight
   bar.classList.toggle('solid', y > flightEnd - vh * 0.6);
   route.classList.toggle('show', y > flightEnd - vh * 0.6);
+  if (!reduce && hours.length > 1) {
+    const label = hourLabel(hourAt(y));
+    if (clock.textContent !== label) clock.textContent = label;
+  }
   // word-by-word statement
   if (scrubWords.length) {
     const p = clamp((y - introTop - vh * 0.1) / Math.max(1, introH - vh * 1.2));
@@ -376,8 +450,56 @@ function updateDom(T, y) {
 let fired = false;
 function fireShutter() {
   if (reduce) return;
+  if (sound) sound.click();
   shutter.animate([{ opacity: 0 }, { opacity: 0.85, offset: 0.1 }, { opacity: 0 }], { duration: 560, easing: 'cubic-bezier(.22,.61,.36,1)' });
 }
+
+/* ---------- sound: off until asked for ---------- */
+const soundBtn = $('#sound-btn');
+let sound = null;
+soundBtn.addEventListener('click', async () => {
+  if (!sound) sound = (await import('./sound.js')).createSound();
+  sound.set(!sound.on);
+  soundBtn.setAttribute('aria-pressed', String(sound.on));
+});
+document.addEventListener('visibilitychange', () => { if (sound && sound.on && document.hidden) { sound.set(false); soundBtn.setAttribute('aria-pressed', 'false'); } });
+
+/* ---------- hero: the visitor can turn the drone by hand ---------- */
+// Drag spins it with momentum; let go and it drifts back to its pose. Horizontal drags only on
+// touch (the hero is pan-y), so a vertical swipe still scrolls into the flight.
+const hero = $('#hero');
+const spin = { yaw: 0, pitch: 0, vy: 0, vp: 0, drag: null };
+hero.addEventListener('pointerdown', (e) => {
+  if (reduce || e.button || e.target.closest('a,button')) return;
+  spin.drag = { x: e.clientX, y: e.clientY, t: performance.now(), id: e.pointerId };
+  hero.setPointerCapture(e.pointerId);
+  hero.classList.add('dragging');
+});
+hero.addEventListener('pointermove', (e) => {
+  const d = spin.drag;
+  if (!d || e.pointerId !== d.id) return;
+  const now = performance.now(), dts = Math.max(0.008, (now - d.t) / 1000);
+  const dyaw = (e.clientX - d.x) * 0.009, dp = (e.clientY - d.y) * 0.004;
+  spin.yaw += dyaw; spin.pitch = clamp(spin.pitch + dp, -0.4, 0.4);
+  spin.vy = lerp(spin.vy, dyaw / dts, 0.5); spin.vp = 0;
+  Object.assign(d, { x: e.clientX, y: e.clientY, t: now });
+});
+const endDrag = () => { spin.drag = null; hero.classList.remove('dragging'); };
+hero.addEventListener('pointerup', endDrag);
+hero.addEventListener('pointercancel', endDrag);
+function spinStep(dt) {
+  if (spin.drag) return;
+  spin.yaw = Math.atan2(Math.sin(spin.yaw), Math.cos(spin.yaw));   // come home the short way
+  const w = 1.7;
+  spin.vy += (-w * w * spin.yaw - 2 * w * 0.55 * spin.vy) * dt; spin.yaw += spin.vy * dt;
+  spin.vp += (-w * w * spin.pitch - 2 * w * spin.vp) * dt; spin.pitch += spin.vp * dt;
+}
+
+/* ---------- case study: survey → finished ---------- */
+$$('.ba').forEach((ba) => {
+  const r = $('.ba-range', ba);
+  r.addEventListener('input', () => ba.style.setProperty('--split', r.value + '%'));
+});
 
 /* ---------- 3D ---------- */
 let world = null, drone = null;
@@ -407,7 +529,7 @@ async function boot3D() {
 }
 
 /* ---------- main loop ---------- */
-let cur = scrollY, last = performance.now(), time = 0, frames = 0, slow = 0, dprDropped = false;
+let cur = scrollY, last = performance.now(), time = 0, frames = 0, slow = 0, dprDropped = false, landed = false;
 function loop(now) {
   const dt = Math.min(0.05, (now - last) / 1000); last = now; time += dt;
   const y = scrollY;
@@ -426,7 +548,14 @@ function loop(now) {
       // at full daylight the next dark section is already on screen, and left transparent it
       // shows bone through its own copy. Only true ink lets them go back to the canvas.
       root.classList.toggle('crossing', mix > 0.002);
-      world.update({ T, time, dt, light: mix, dock: T >= 3 ? escort(y, dt) : null });
+      const dock = T >= 3 ? escort(y, dt) : null;
+      spinStep(dt);
+      world.update({ T, time, dt, light: mix, dock, hour: hourAt(y), spin });
+      if (sound && sound.on) {
+        const seen = !dock || (dock.x > -60 && dock.x < innerWidth + 60 && dock.y > -60 && dock.y < vh + 60);
+        sound.update(dock ? dock.thr : 0.75 + 0.25 * clamp(T - 2), seen ? 1 : 0.15);
+        if (dock && dock.land > 0.92 && !landed) { landed = true; sound.click(); } else if (!dock || dock.land < 0.5) landed = false;
+      }
       // adaptive quality: if the first second is slow, drop the pixel ratio once
       if (++frames > 20 && frames < 90) { slow += dt > 0.032 ? 1 : 0; }
       if (frames === 90 && slow > 40 && !dprDropped) { dprDropped = true; world.renderer.setPixelRatio(1); world.resize(); }

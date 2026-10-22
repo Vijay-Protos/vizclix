@@ -38,6 +38,15 @@
 
 <!-- the drone's viewfinder: frames whichever heading or call to action it has stopped at -->
 <div class="reticle" id="reticle" aria-hidden="true"></div>
+<!-- the drone's camera: what it would be filming at the stop it holds (stock footage for now) -->
+<figure class="feed" id="feed" aria-hidden="true">
+  <div class="feed-view">
+    <video muted loop playsinline preload="none"></video>
+    <img alt="">
+    <svg class="feed-plan" viewBox="0 0 160 90"><rect class="plot" x="42" y="20" width="76" height="52"/><rect x="58" y="34" width="12" height="12"/><rect x="88" y="40" width="12" height="12"/><rect x="54" y="52" width="50" height="10"/><ellipse class="path" cx="80" cy="46" rx="54" ry="34"/><path class="path" d="M8 84 L36 64 Q48 54 62 40"/><circle cx="8" cy="84" r="2.5"/></svg>
+  </div>
+  <figcaption class="feed-hud mono"><span class="rec">Rec</span><span class="feed-label"></span><span class="feed-tc">00:00:00</span></figcaption>
+</figure>
 <!-- route rail: a waypoint per section, filled in by main.js -->
 <nav class="route" id="route" aria-label="Sections"></nav>
 
@@ -52,6 +61,7 @@
   <span class="bar-mid" id="bar-section" aria-hidden="true">/ 01 — Seeing Property</span>
   <span class="bar-clock mono" id="clock" aria-hidden="true">Local 00:00</span>
   <div class="bar-right">
+    <button class="sound-btn" id="sound-btn" type="button" aria-pressed="false"><i aria-hidden="true"><b></b><b></b><b></b><b></b></i><span>Sound</span></button>
     <a href="#contact" class="quote-link">Request a Quote</a>
     <button class="menu-btn" id="menu-btn" type="button" aria-expanded="false" aria-controls="menu"><span>menu</span><i></i></button>
   </div>
@@ -78,7 +88,7 @@
 <main id="top">
 
 <!-- ============ / 01 HERO ============ -->
-<section class="hero" id="hero" data-section="/ 01 — First Impression">
+<section class="hero" id="hero" data-hour="18.5" data-section="/ 01 — First Impression">
   <div class="frame-lines" aria-hidden="true"><i class="v"></i><i class="h"></i></div>
   <div class="hero-grid">
     <span class="idx">/ 01</span>
@@ -99,13 +109,14 @@
     </div>
     <div class="hero-foot">
       <span class="mono tag">[ Launch Films ]</span><span class="mono tag">[ Aerial Stills ]</span><span class="mono tag">[ Site Progress ]</span>
+      <span class="mono tag drag-cue">[ Drag to Turn ]</span>
       <span class="scroll-cue">Scroll to Fly <i aria-hidden="true"></i></span>
     </div>
   </div>
 </section>
 
 <!-- ============ INTRO — word-by-word read ============ -->
-<section class="intro" id="intro" data-section="/ 02 — The View">
+<section class="intro" id="intro" data-hour="18.9" data-section="/ 02 — The View">
   <div class="intro-stick">
     <span class="idx">/ 02</span>
     <div class="intro-inner">
@@ -116,7 +127,7 @@
 </section>
 
 <!-- ============ SIGNATURE FLIGHT ============ -->
-<section class="flight" id="flight" data-section="/ 03 — The Flight" aria-label="The flight">
+<section class="flight" id="flight" data-hour="19.4" data-section="/ 03 — The Flight" aria-label="The flight">
   <div class="flight-stick">
     <div class="hud hud-tl mono" aria-hidden="true">[ Alt <b id="hud-alt">000</b> m ]</div>
     <div class="hud hud-tr mono" aria-hidden="true">[ Dist <b id="hud-dist">640</b> m ]</div>
@@ -146,7 +157,7 @@
 </section>
 
 <!-- ============ / 06 WORK ============ -->
-<section class="sec work" id="work" data-section="/ 06 — Work">
+<section class="sec work" id="work" data-hour="5.0" data-feed="assets/feed/apartments-aerial.mp4|Approach" data-section="/ 06 — Work">
   <div class="wrap">
     <div class="bigword" aria-hidden="true" data-bigword>Work</div>
     <div class="sec-head">
@@ -187,22 +198,27 @@
 
 
 <!-- ============ / 07 CASE STUDY ============ -->
-<section class="sec study" id="study" data-section="/ 07 — In Depth">
+<section class="sec study" id="study" data-hour="5.5" data-feed="assets/work/mahavir-springs-thane.jpg|Dusk Hold" data-section="/ 07 — In Depth">
   <div class="wrap">
     <div class="sec-head">
       <span class="idx">/ 07</span>
       <h2 class="h2">One Project, Start to Finish<span class="dot">.</span></h2>
-      <p class="body">A worked example, not a past job. It is how we scope a tower launch, written out in full so you can see the thinking before you hire it. <span class="mono tbc">[ Replaced by a real case study once a VizClix shoot is delivered ]</span></p>
+      <p class="body">The two towers from the flight, scoped as a real launch. A worked example, not a past job: how we plan a tower launch, written out in full so you can see the thinking before you hire it. <span class="mono tbc">[ Replaced by a real case study once a VizClix shoot is delivered ]</span></p>
     </div>
     <div class="study-grid">
       <figure class="study-shot">
-        <img src="assets/work/mahavir-springs-thane.jpg" width="1280" height="1600" alt="Two residential towers at dusk, photographed from the air with the surrounding roads and hills visible." loading="lazy" decoding="async">
-        <figcaption class="mono">[ Visualisation — Polycrayons · ACIPL ] Illustrative. Not a VizClix flight.</figcaption>
+        <div class="ba" style="--split:50%">
+          <img src="assets/work/mahavir-springs-thane.jpg" width="1280" height="1600" alt="Two residential towers at dusk, photographed from the air with the surrounding roads and hills visible." loading="lazy" decoding="async">
+          <div class="ba-survey" aria-hidden="true"><img src="assets/work/mahavir-springs-thane.jpg" width="1280" height="1600" alt="" loading="lazy" decoding="async"></div>
+          <span class="ba-tag mono l" aria-hidden="true">[ Survey ]</span><span class="ba-tag mono r" aria-hidden="true">[ Finished ]</span>
+          <input class="ba-range" type="range" min="0" max="100" value="50" aria-label="Compare the survey view with the finished image">
+        </div>
+        <figcaption class="mono">[ Visualisation — Polycrayons · ACIPL ] Drag to compare the survey with the finished frame. Illustrative. Not a VizClix flight.</figcaption>
       </figure>
       <div class="study-body">
         <div class="study-block">
           <span class="slash">/ 01 — The brief</span>
-          <p>A two-tower residential launch on a main road, hills behind, a creek to one side. Sales needed a film for the launch event and stills for the hoarding, four weeks out. The towers were topped out but unclad on one face.</p>
+          <p>A two-tower residential launch on a main road, hills behind, a lake to one side. Sales needed a film for the launch event and stills for the hoarding, four weeks out. The towers were topped out but unclad on one face.</p>
         </div>
         <div class="study-block">
           <span class="slash">/ 02 — The constraints</span>
@@ -235,7 +251,7 @@
 </section>
 
 <!-- ============ / 08 SERVICES ============ -->
-<section class="sec services" id="services" data-section="/ 08 — Services">
+<section class="sec services" id="services" data-hour="6.0" data-feed="assets/feed/crane-sunset.mp4|Progress" data-section="/ 08 — Services">
   <div class="wrap">
     <div class="bigword" aria-hidden="true" data-bigword>Services</div>
     <div class="sec-head">
@@ -249,7 +265,7 @@
       <li><span class="mono n">03</span><h3>Location &amp; Connectivity</h3><p>The roads in, the station, the school, the water. The answers a buyer asks for on the first call.</p><span class="mono tbc">[ Scope to confirm ]</span></li>
       <li><span class="mono n">04</span><h3>Construction Progress</h3><p>The same frame, flown at agreed intervals, so investors watch the slab go up instead of reading about it.</p><span class="mono tbc">[ Interval to confirm ]</span></li>
       <li><span class="mono n">05</span><h3>Social Cutdowns</h3><p>Vertical edits cut from the same flight, built for the feed rather than squeezed into it.</p><span class="mono tbc">[ Formats to confirm ]</span></li>
-      <li><span class="mono n">06</span><h3>Film &amp; Render Together</h3><p>Flown footage matched to Polycrayons visualisation, so a project under construction can be shown finished.</p><span class="mono tbc">[ Scope to confirm ]</span></li>
+      <li><span class="mono n">06</span><h3>Film &amp; Render Together</h3><p>Flown footage matched to Polycrayons visualisation, so a project under construction can be shown finished. <a href="#study" class="inline-link">See the before and after</a></p><span class="mono tbc">[ Scope to confirm ]</span></li>
     </ol>
     <p class="more"><a href="#contact" class="link-arrow">Explore a Scope with Us <svg width="18" height="12" viewBox="0 0 18 12" fill="none" aria-hidden="true"><path d="M0 6h16M11 1l5 5-5 5" stroke="currentColor" stroke-width="1.5"/></svg></a></p>
   </div>
@@ -257,7 +273,7 @@
 
 
 <!-- ============ / 09 SHOT GRAMMAR ============ -->
-<section class="sec grammar" id="grammar" data-section="/ 09 — The Grammar">
+<section class="sec grammar" id="grammar" data-hour="6.6" data-feed="assets/feed/blocks-topdown.mp4|Top-Down" data-section="/ 09 — The Grammar">
   <div class="wrap">
     <div class="bigword" aria-hidden="true" data-bigword>Moves</div>
     <div class="sec-head">
@@ -307,7 +323,7 @@
 </section>
 
 <!-- ============ / 10 PERSPECTIVE (light inversion) ============ -->
-<section class="sec perspective light" id="perspective" data-section="/ 10 — Perspective">
+<section class="sec perspective light" id="perspective" data-hour="8.5" data-feed="assets/feed/lake-city.mp4|Context" data-section="/ 10 — Perspective">
   <div class="wrap">
     <div class="sec-head">
       <span class="idx">/ 10</span>
@@ -332,7 +348,7 @@
 </section>
 
 <!-- ============ / 09 PROCESS ============ -->
-<section class="sec process light" id="process" data-section="/ 11 — Process">
+<section class="sec process light" id="process" data-hour="11.0" data-feed="plan|Flight Plan" data-section="/ 11 — Process">
   <div class="wrap">
     <div class="bigword" aria-hidden="true" data-bigword>Process</div>
     <div class="sec-head">
@@ -352,7 +368,7 @@
 
 
 <!-- ============ / 10 PARTNER NETWORK ============ -->
-<section class="sec partner" id="partner" data-section="/ 12 — Fly With Us">
+<section class="sec partner" id="partner" data-hour="16.9" data-feed="assets/feed/drone-city-lights.mp4|Network" data-section="/ 12 — Fly With Us">
   <div class="wrap">
     <div class="bigword" aria-hidden="true" data-bigword>Network</div>
     <div class="sec-head">
@@ -393,7 +409,7 @@
 </section>
 
 <!-- ============ / 11 PROOF ============ -->
-<section class="sec proof" id="proof" data-section="/ 13 — Proof">
+<section class="sec proof" id="proof" data-hour="17.4" data-section="/ 13 — Proof">
   <div class="wrap">
     <div class="sec-head">
       <span class="idx">/ 13</span>
@@ -410,7 +426,7 @@
 </section>
 
 <!-- ============ / 11 QUESTIONS ============ -->
-<section class="sec faq" id="faq" data-section="/ 14 — Questions">
+<section class="sec faq" id="faq" data-hour="17.9" data-section="/ 14 — Questions">
   <div class="wrap faq-grid">
     <div class="sec-head">
       <span class="idx">/ 14</span>
@@ -429,7 +445,7 @@
 </section>
 
 <!-- ============ / 12 CONTACT ============ -->
-<section class="sec contact" id="contact" data-section="/ 15 — Let’s Talk">
+<section class="sec contact" id="contact" data-hour="18.6" data-feed="assets/feed/towers-night.mp4|Dusk Hold" data-section="/ 15 — Let’s Talk">
   <div class="wrap">
     <div class="bigword" aria-hidden="true" data-bigword>Talk</div>
     <div class="contact-grid">
@@ -497,6 +513,7 @@
         <button type="button" class="motion-toggle" data-motion-toggle></button>
       </nav>
       <p class="mono contact-ph">[ Email ] · [ Phone / WhatsApp ] · [ Legal entity ]</p>
+      <p class="mono credits">District map data © <a href="https://www.openstreetmap.org/copyright" rel="noopener">OpenStreetMap contributors</a> · Feed footage: stock placeholders (Mixkit)</p>
     </div>
   </div>
 </footer>
