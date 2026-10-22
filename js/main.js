@@ -266,7 +266,7 @@ function showFeed(f) {
   if (!f) { feedVid.pause(); return; }
   const kind = f.src === 'plan' ? 'plan' : /\.mp4$/.test(f.src) ? 'video' : 'image';
   feedEl.dataset.kind = kind;
-  feedLabel.textContent = 'Feed — ' + f.label + (kind === 'plan' ? '' : ' · Stock');
+  feedLabel.textContent = 'Feed — ' + f.label + (f.stock ? ' · Stock' : '');
   if (kind === 'video') {
     if (!feedVid.src.endsWith(f.src)) feedVid.src = f.src;
     feedVid.play().catch(() => { /* autoplay refused: the still frame stays */ });
@@ -349,7 +349,7 @@ function measureEscort() {
     const sec = el.closest('.sec');
     const spec = el.matches('.h2') && sec.dataset.feed;
     let best = spec && pick(true), feed = null;
-    if (best) { const [src, label] = spec.split('|'); feed = { src, label }; } else best = pick(false);
+    if (best) { const [src, label, stock] = spec.split('|'); feed = { src, label, stock: stock === 'stock' }; } else best = pick(false);
     if (!best) return null;                                         // nowhere to stand: fly on by
     const [x, y] = best;
     // face the anchor, turned three-quarters toward the reader so the camera reads

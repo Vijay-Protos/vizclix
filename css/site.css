@@ -51,7 +51,7 @@ ol,ul{list-style:none}
 .brand{display:flex;align-items:center;gap:12px;font-size:17px;font-weight:400;letter-spacing:-.01em}
 .brand .sep{width:5px;height:5px;background:currentColor;opacity:.5}
 .brand-sub{font-size:15px;opacity:.6}
-.bar-mid{position:absolute;left:50%;transform:translateX(-50%);font-size:15px;opacity:.7;white-space:nowrap}
+.bar-mid{flex:1 1 auto;min-width:0;text-align:center;font-size:15px;opacity:.7;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .bar-clock{opacity:.7;margin-left:auto;margin-right:36px}
 .bar-right{display:flex;align-items:center;gap:22px}
 .quote-link{font-size:15px;font-weight:400;border-bottom:1px solid var(--ember);padding:6px 0}
@@ -536,7 +536,7 @@ html.lenis,html.lenis body{height:auto}
 .no-gl .statement .w{opacity:1}
 
 /* the section label and the clock share the header's middle: below 1400px there is room for one */
-@media (max-width:1400px){.bar-mid{display:none}}
+
 
 /* looping ornaments respect the OS setting even before (or without) JS */
 @media (prefers-reduced-motion:reduce){

@@ -1,0 +1,51 @@
+# Builds the site from the published VizClix page in Payload and publishes it
+# to GitHub Pages. Runs on every push to main, when the admin publishes
+# (repository_dispatch "cms-publish"), and by hand from the Actions tab.
+# If the CMS cannot be reached the build fails and the last good site stays up.
+name: Build and publish
+
+on:
+  push:
+    branches: [main]
+  repository_dispatch:
+    types: [cms-publish]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run build
+        env:
+          # A repository variable PAYLOAD_URL points the build at another CMS server.
+          # To publish index.html as written, without a CMS, remove this line.
+          PAYLOAD_URL: ${{ vars.PAYLOAD_URL || 'https://dev.polycrayons.com' }}
+          VIZCLIX_SITE: vizclix
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: _site
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4

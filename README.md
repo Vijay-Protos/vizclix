@@ -23,7 +23,8 @@ work, shown until VizClix shoots are delivered.
 ES modules need HTTP; opening the file directly will not work.
 
 ## Layout
-    index.html          markup and copy
+    index.html          markup, and the copy used when built without the CMS
+    tools/cms/build.mjs fills the page from the CMS at build time
     css/site.css        tokens and layout
     js/main.js          scroll timeline, loader, motion preference
     js/scene.js         3D world, camera rig, section stations
@@ -33,6 +34,20 @@ ES modules need HTTP; opening the file directly will not work.
     assets/feed/        drone camera-feed clips (stock placeholders)
     assets/city/        Thane West district from OpenStreetMap
     vendor/lenis/       Lenis 1.3.26 smooth scrolling (MIT)
+
+## Content
+Every word, list and image is edited in the Polycrayons admin (dev.polycrayons.com,
+site **VizClix** in the sidebar selector, then **VizClix Page**). Publishing there
+triggers `.github/workflows/pages.yml`, which runs the build and publishes to Pages.
+
+    PAYLOAD_URL=https://dev.polycrayons.com npm run build   # writes _site/
+
+`tools/cms/build.mjs` fills `index.html` with the published content and downloads
+its media into `_site/assets/cms/`, so visitors never load from the CMS. It stops
+if an element it expects is missing, and if the CMS cannot be reached the last
+good site stays up. Without `PAYLOAD_URL` it publishes `index.html` as written, so
+the site does not depend on the CMS; change the structure in `index.html`, the
+words in the admin.
 
 ## Motion
 The page respects `prefers-reduced-motion` and falls back to a static layout.
