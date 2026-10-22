@@ -27,6 +27,7 @@ const DAY = [
 
 // ---- camera / drone keyframes (catmull-rom through these) ----
 // cam, look, pos, rot (pitch,yaw,roll), then fov, scale, throttle, gimbal pitch
+// The last two flight frames aim right of the drone, so it hovers left of the film's framed shot.
 const K = [
   { T: 0.0, cam: [0.0, 0.4, 7.4],  look: [-1.7, -0.1, 0],  pos: [0, 0, 0], rot: [0.10, -0.55, 0.05],   fov: 30, sc: 0.88, thr: 0.75, gim: -0.2 },
   { T: 0.5, cam: [0.6, 0.9, 7.0],  look: [-1.4, -0.2, 0],  pos: [0, 0, 0], rot: [0.08, -0.95, 0.0],    fov: 30, sc: 0.9, thr: 0.75, gim: -0.2 },
@@ -34,8 +35,8 @@ const K = [
   { T: 1.5, cam: [0.0, 1.0, 9.0],  look: [-2.4, -1.2, -1], pos: [0, 0, 0], rot: [0.10, -2.3, 0.0],     fov: 30, sc: 0.78, thr: 0.85, gim: -0.25 },
   { T: 2.0, cam: [0.0, 1.8, 7.0],  look: [0.0, -0.9, -4],  pos: [0, 0, 0], rot: [0.16, 3.1416, 0.0],   fov: 34, sc: 1.0,  thr: 1.0,  gim: -0.35 },
   { T: 2.4, cam: [3.6, 0.7, 6.0],  look: [0.0, -1.6, -3],  pos: [0, 0, 0], rot: [0.12, 3.1416, -0.08], fov: 34, sc: 1.0,  thr: 1.0,  gim: -0.5 },
-  { T: 2.75, cam: [-5.4, 0.3, 8.2], look: [0.0, -2.3, -1.2], pos: [0, 0, 0], rot: [0.08, 3.5, 0.05],  fov: 35, sc: 1.0,  thr: 0.8,  gim: -0.95 },
-  { T: 3.0, cam: [-6.4, 0.7, 8.6], look: [0.0, -2.1, 0],  pos: [0, 0, 0], rot: [0.03, 3.65, 0.0],    fov: 36, sc: 1.0,  thr: 0.6,  gim: -1.15 },
+  { T: 2.75, cam: [-5.4, 0.3, 8.2], look: [1.9, -2.3, -0.1], pos: [0, 0, 0], rot: [0.08, 3.5, 0.05],  fov: 35, sc: 1.0,  thr: 0.8,  gim: -0.95 },
+  { T: 3.0, cam: [-6.4, 0.7, 8.6], look: [1.9, -2.1, 1.45], pos: [0, 0, 0], rot: [0.03, 3.65, 0.0],    fov: 36, sc: 1.0,  thr: 0.6,  gim: -1.15 },
   // --- the escort: camera holds a studio view, the drone takes a station per section ---
   // Yaw is deliberate: the drone faces what it is looking at. Front is +Z, so y=0 faces the
   // reader, y=PI faces away, y=PI/2 points screen-right, y=3PI/2 points screen-left.
@@ -499,10 +500,12 @@ export function createWorld({ canvas, drone, quality }) {
     tmat.uniforms.uScroll.value = scrollZ;
     tmat.uniforms.uTime.value = s.time;
     tmat.uniforms.uFade.value = 1 - esc;
-    terrain.visible = esc < 1;
+    // with the After Effects film behind it (s.film) the drone is all the canvas draws
+    const film = !!s.film;
+    terrain.visible = !film && esc < 1;
     pin.position.set(0, -6, pinT.y + scrollZ);
     const reveal = clamp01((T - 2.5) / 0.45) * (1 - esc);   // survey → finished image
-    pin.visible = esc < 1 && pin.position.z > -120;
+    pin.visible = !film && esc < 1 && pin.position.z > -120;
     heroMesh.visible = reveal > 0.01;
     heroMat.uniforms.uFade.value = reveal * (1 - esc);
     // the district rises into view as the property nears, instead of crowding the opening
@@ -517,7 +520,7 @@ export function createWorld({ canvas, drone, quality }) {
     baseRing.material.opacity = 0.8 * (1 - esc);
     dust.position.z = scrollZ % 70;
     dust.material.opacity = 0.35 * (1 - esc);
-    dust.visible = esc < 1;
+    dust.visible = !film && esc < 1;
 
     // daylight section: the sky, the fog and the exposure all cross over
     const lit = s.light || 0;
@@ -573,7 +576,7 @@ export function createWorld({ canvas, drone, quality }) {
 
     // fog: the opening clears around the arriving drone; at night a bank rolls over the district
     // and lifts as the property is revealed; none once the flight is over
-    const bank = clamp01((T - 1.5) / 0.6) * (1 - clamp01((T - 2.45) / 0.4));
+    const bank = film ? 0 : clamp01((T - 1.5) / 0.6) * (1 - clamp01((T - 2.45) / 0.4));   // the film has its own
     const amt = (lerp(1, 0.12, ein) * (1 - clamp01((T - 0.6) / 0.6)) + bank * 0.55) * (1 - esc);
     fogQuad.visible = !s.front && amt > 0.005;
     if (fogQuad.visible) {
@@ -587,12 +590,12 @@ export function createWorld({ canvas, drone, quality }) {
       fu.uCol.value.copy(fogC).lerp(BONE_C, 0.12);
     }
     // once the drone flies in front of the page the canvas is a clear layer and the sky is CSS
-    sky.visible = !s.front;
-    if (s.front) renderer.setClearColor(0x000000, 0); else renderer.setClearColor(INK, 1);
+    sky.visible = !s.front && !film;
+    if (s.front || film) renderer.setClearColor(0x000000, 0); else renderer.setClearColor(INK, 1);
 
     // ground scanner: only over the property, during the flight
     const scanOn = (1 - esc) * clamp01((T - 1.4) / 0.6);
-    scan.visible = scanOn > 0.01;
+    scan.visible = !film && scanOn > 0.01;
     if (scan.visible) {
       scan.position.set(g.position.x, -5.97, g.position.z);
       scan.scale.setScalar(v[13] * (1 + Math.sin(t * 1.6) * 0.03));
