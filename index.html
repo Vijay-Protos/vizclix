@@ -7,18 +7,31 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="theme-color" content="#0A0B0D">
 <meta name="robots" content="noindex, nofollow">
-<link rel="canonical" href="https://vizclix.com/">
+<!-- canonical, og:url and the JSON-LD url move to https://vizclix.com/ when the domain is pointed -->
+<link rel="canonical" href="https://vijay-protos.github.io/vizclix/">
+<link rel="icon" href="assets/icon.svg" type="image/svg+xml">
 <meta property="og:title" content="VizClix — Seeing Property from a Higher Perspective.">
 <meta property="og:description" content="Aerial photography and film for real estate.">
 <meta property="og:type" content="website">
-<meta property="og:url" content="https://vizclix.com/">
+<meta property="og:url" content="https://vijay-protos.github.io/vizclix/">
+<meta property="og:image" content="https://vijay-protos.github.io/vizclix/assets/share.jpg">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="A drone over a city at dusk, with the VizClix headline.">
+<meta name="twitter:card" content="summary_large_image">
+<script type="application/ld+json">{"@context":"https://schema.org","@type":"ProfessionalService","name":"VizClix","description":"Aerial photography and film for real estate: launch films, aerial stills, location and construction-progress flights.","url":"https://vijay-protos.github.io/vizclix/","image":"https://vijay-protos.github.io/vizclix/assets/share.jpg","parentOrganization":{"@type":"Organization","name":"Polycrayons","url":"https://www.polycrayons.com"},"sameAs":["https://www.instagram.com/visualsbypolycrayons"]}</script>
 <script>document.documentElement.className='js';</script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@200..700&family=Geist+Mono:wght@400;500&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@200..700&family=Geist+Mono:wght@400;500&display=swap" media="print" onload="this.media='all'">
+<noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@200..700&family=Geist+Mono:wght@400;500&display=swap"></noscript>
 <link rel="stylesheet" href="css/site.css">
+<!-- what the loader waits for, fetched at once rather than one after another -->
+<link rel="modulepreload" href="js/main.js">
+<link rel="preload" as="image" href="assets/film/l/000.webp" media="(min-width: 900px)" fetchpriority="high">
+<link rel="preload" as="image" href="assets/film/s/000.webp" media="(max-width: 899.98px)" fetchpriority="high">
 <script type="importmap">
-{ "imports": { "three": "./vendor/three/three.module.js", "three/addons/": "./vendor/three/addons/" } }
+{ "imports": { "three": "./vendor/three/three.module.min.js", "three/addons/": "./vendor/three/addons/" } }
 </script>
 </head>
 <body>
@@ -34,8 +47,9 @@
 <div class="shutter" id="shutter" aria-hidden="true"></div>
 
 <!-- loader: counts real milestones (fonts, 3D engine, model, first frame) -->
-<div class="loader" id="loader" role="status" aria-live="polite">
-  <div class="loader-row"><span class="mono">VizClix</span><span class="mono" id="loader-n">000</span></div>
+<div class="loader" id="loader" role="status">
+  <span class="sr-only">Loading VizClix</span>
+  <div class="loader-row" aria-hidden="true"><span class="mono">VizClix</span><span class="mono" id="loader-n">000</span></div>
   <div class="loader-bar"><i id="loader-bar"></i></div>
 </div>
 
@@ -47,7 +61,6 @@
 <figure class="feed" id="feed" aria-hidden="true">
   <div class="feed-view">
     <video muted loop playsinline preload="none"></video>
-    <img alt="">
     <svg class="feed-plan" viewBox="0 0 160 90"><rect class="plot" x="42" y="20" width="76" height="52"/><rect x="58" y="34" width="12" height="12"/><rect x="88" y="40" width="12" height="12"/><rect x="54" y="52" width="50" height="10"/><ellipse class="path" cx="80" cy="46" rx="54" ry="34"/><path class="path" d="M8 84 L36 64 Q48 54 62 40"/><circle cx="8" cy="84" r="2.5"/></svg>
   </div>
   <figcaption class="feed-hud mono"><span class="rec">Rec</span><span class="feed-label"></span><span class="feed-tc">00:00:00</span></figcaption>
@@ -57,7 +70,7 @@
 
 <!-- header: metadata bar -->
 <header class="bar" id="bar">
-  <a href="#top" class="brand" aria-label="VizClix home">
+  <a href="#top" class="brand">
     <svg width="26" height="26" viewBox="0 0 28 28" fill="none" aria-hidden="true"><path d="M2 9V2h7M19 2h7v7M26 19v7h-7M9 26H2v-7" stroke="currentColor" stroke-width="1.5"/><circle cx="14" cy="14" r="3.2" fill="#FF6B35"/></svg>
     <span class="brand-name">vizclix</span>
     <i class="sep" aria-hidden="true"></i>
@@ -66,7 +79,7 @@
   <span class="bar-mid" id="bar-section" aria-hidden="true">/ 01 — Seeing Property</span>
   <span class="bar-clock mono" id="clock" aria-hidden="true">Local 00:00</span>
   <div class="bar-right">
-    <button class="sound-btn" id="sound-btn" type="button" aria-pressed="false"><i aria-hidden="true"><b></b><b></b><b></b><b></b></i><span>Sound</span></button>
+    <button class="sound-btn" id="sound-btn" type="button" aria-pressed="false" aria-label="Sound"><i aria-hidden="true"><b></b><b></b><b></b><b></b></i><span>Sound</span></button>
     <a href="#contact" class="quote-link">Request a Quote</a>
     <button class="menu-btn" id="menu-btn" type="button" aria-expanded="false" aria-controls="menu"><span>menu</span><i></i></button>
   </div>
@@ -86,7 +99,7 @@
   <div class="menu-foot">
     <a href="https://www.instagram.com/visualsbypolycrayons" rel="noopener">Instagram — @visualsbypolycrayons</a>
     <a href="https://www.polycrayons.com" rel="noopener">Part of Polycrayons</a>
-    <button type="button" class="motion-toggle" data-motion-toggle></button>
+    <button type="button" class="motion-toggle" data-motion-toggle>Motion</button>
   </div>
 </nav>
 
@@ -171,30 +184,30 @@
       <p class="body">Projects from Polycrayons, the studio VizClix grew out of. Film and stills from our own flights take their place as they are delivered.</p>
     </div>
     <div class="cards">
-      <a href="https://www.polycrayons.com" rel="noopener" class="card c1" aria-label="Purva Orient Grand, Bangalore — view the studio portfolio">
+      <a href="https://www.polycrayons.com" rel="noopener" class="card c1">
         <img class="art" src="assets/work/purva-orient-grand-bangalore.jpg" width="1600" height="872" alt="Purva Orient Grand, Bangalore, lit at dusk above the city skyline." loading="lazy" decoding="async">
         <span class="ph mono">[ Studio Work — Polycrayons ]</span>
-        <div class="meta"><span class="slash">/ Work — Spectrum Design</span><h3>Purva Orient Grand<span class="dot">.</span></h3><span class="loc mono">Bangalore</span></div><span class="num mono">01</span>
+        <div class="meta"><span class="slash">/ Work — Spectrum Design</span><h3>Purva Orient Grand<span class="dot">.</span></h3><span class="loc mono">Bangalore</span></div><span class="sr-only"> — view the studio portfolio</span><span class="num mono">01</span>
       </a>
-      <a href="https://www.polycrayons.com" rel="noopener" class="card c2" aria-label="Mahavir Springs, Thane — view the studio portfolio">
+      <a href="https://www.polycrayons.com" rel="noopener" class="card c2">
         <img class="art" src="assets/work/mahavir-springs-thane.jpg" width="1280" height="1600" alt="Aerial dusk view of the Mahavir Springs towers, Thane, with the surrounding roads and hills." loading="lazy" decoding="async">
         <span class="ph mono">[ Studio Work — Polycrayons ]</span>
-        <div class="meta"><span class="slash">/ Work — ACIPL</span><h3>Mahavir Springs<span class="dot">.</span></h3><span class="loc mono">Thane · Aerial</span></div><span class="num mono">02</span>
+        <div class="meta"><span class="slash">/ Work — ACIPL</span><h3>Mahavir Springs<span class="dot">.</span></h3><span class="loc mono">Thane · Aerial</span></div><span class="sr-only"> — view the studio portfolio</span><span class="num mono">02</span>
       </a>
-      <a href="https://www.polycrayons.com" rel="noopener" class="card c3" aria-label="Kanakiya Future City — view the studio portfolio">
+      <a href="https://www.polycrayons.com" rel="noopener" class="card c3">
         <img class="art" src="assets/work/kanakiya-future-city.jpg" width="1600" height="1200" alt="Kanakiya Future City development seen from the air." loading="lazy" decoding="async">
         <span class="ph mono">[ Studio Work ]</span>
-        <div class="meta"><span class="slash">/ Work — Kapadiya Associates</span><h3>Kanakiya Future City<span class="dot">.</span></h3><span class="loc mono">Mumbai</span></div><span class="num mono">03</span>
+        <div class="meta"><span class="slash">/ Work — Kapadiya Associates</span><h3>Kanakiya Future City<span class="dot">.</span></h3><span class="loc mono">Mumbai</span></div><span class="sr-only"> — view the studio portfolio</span><span class="num mono">03</span>
       </a>
-      <a href="https://www.polycrayons.com" rel="noopener" class="card c4" aria-label="Centrum — view the studio portfolio">
+      <a href="https://www.polycrayons.com" rel="noopener" class="card c4">
         <img class="art" src="assets/work/centrum-apices.jpg" width="1600" height="900" alt="The Centrum development at dusk." loading="lazy" decoding="async">
         <span class="ph mono">[ Studio Work ]</span>
-        <div class="meta"><span class="slash">/ Work — Apices Architects</span><h3>Centrum<span class="dot">.</span></h3><span class="loc mono">Mumbai</span></div><span class="num mono">04</span>
+        <div class="meta"><span class="slash">/ Work — Apices Architects</span><h3>Centrum<span class="dot">.</span></h3><span class="loc mono">Mumbai</span></div><span class="sr-only"> — view the studio portfolio</span><span class="num mono">04</span>
       </a>
-      <a href="https://www.polycrayons.com" rel="noopener" class="card c5" aria-label="Dev Datta Heights, Nagpur — view the studio portfolio">
+      <a href="https://www.polycrayons.com" rel="noopener" class="card c5">
         <img class="art" src="assets/work/dev-datta-heights-nagpur.jpg" width="1280" height="1600" alt="Dev Datta Heights, Nagpur, standing above its neighbourhood." loading="lazy" decoding="async">
         <span class="ph mono">[ Studio Work ]</span>
-        <div class="meta"><span class="slash">/ Work — Incepta Architects</span><h3>Dev Datta Heights<span class="dot">.</span></h3><span class="loc mono">Nagpur</span></div><span class="num mono">05</span>
+        <div class="meta"><span class="slash">/ Work — Incepta Architects</span><h3>Dev Datta Heights<span class="dot">.</span></h3><span class="loc mono">Nagpur</span></div><span class="sr-only"> — view the studio portfolio</span><span class="num mono">05</span>
       </a>
     </div>
     <p class="more"><a href="https://www.instagram.com/visualsbypolycrayons" rel="noopener" class="link-arrow">Explore more on Instagram — @visualsbypolycrayons <svg width="18" height="12" viewBox="0 0 18 12" fill="none" aria-hidden="true"><path d="M0 6h16M11 1l5 5-5 5" stroke="currentColor" stroke-width="1.5"/></svg></a></p>
@@ -383,7 +396,7 @@
     </div>
     <div class="deal">
       <article>
-        <span class="slash">/ What we bring</span>
+        <h3 class="slash">/ What we bring</h3>
         <ul>
           <li>Briefed shoots. The shot list is settled before you leave home</li>
           <li>The edit, the grade and the delivery, handled by our studio</li>
@@ -392,7 +405,7 @@
         </ul>
       </article>
       <article>
-        <span class="slash">/ What you bring</span>
+        <h3 class="slash">/ What you bring</h3>
         <ul>
           <li>A certified remote pilot, and the aircraft to go with it</li>
           <li>The local knowledge: which zone the site sits in, and who to ask</li>
@@ -491,17 +504,17 @@
           <label class="chip path"><input type="radio" name="path" value="operator" data-path="operator"><span>Fly for VizClix</span></label>
         </fieldset>
         <div class="fgrid">
-          <div class="field"><label for="f-name">Your Name *</label><input id="f-name" name="name" type="text" placeholder="Full name" autocomplete="name" required><p class="msg">Please tell us your name.</p></div>
-          <div class="field"><label for="f-email">Email *</label><input id="f-email" name="email" type="email" placeholder="name@company.com" autocomplete="email" required><p class="msg">Enter an email we can reply to.</p></div>
+          <div class="field"><label for="f-name">Your Name *</label><input id="f-name" name="name" type="text" placeholder="Full name" autocomplete="name" required aria-describedby="msg-name"><p class="msg" id="msg-name">Please tell us your name.</p></div>
+          <div class="field"><label for="f-email">Email *</label><input id="f-email" name="email" type="email" placeholder="name@company.com" autocomplete="email" required aria-describedby="msg-email"><p class="msg" id="msg-email">Enter an email we can reply to.</p></div>
           <div class="field"><label for="f-phone">Phone / WhatsApp</label><input id="f-phone" name="phone" type="tel" placeholder="Optional" autocomplete="tel"></div>
           <div class="field" data-for="shoot"><label for="f-type">Property Type</label><select id="f-type" name="type"><option>Residential development</option><option>Single property</option><option>Commercial</option><option>Plot / land</option><option>Other</option></select></div>
-          <div class="field full" data-for="shoot"><label for="f-loc">Location *</label><input id="f-loc" name="location" type="text" placeholder="Area, city, or a map pin link" required><p class="msg">Where is the property?</p></div>
-          <div class="field full" data-for="operator"><label for="f-base">Where you’re based *</label><input id="f-base" name="base" type="text" placeholder="City, and how far you travel" required><p class="msg">Tell us the city you fly from.</p></div>
+          <div class="field full" data-for="shoot"><label for="f-loc">Location *</label><input id="f-loc" name="location" type="text" placeholder="Area, city, or a map pin link" required aria-describedby="msg-loc"><p class="msg" id="msg-loc">Where is the property?</p></div>
+          <div class="field full" data-for="operator"><label for="f-base">Where you’re based *</label><input id="f-base" name="base" type="text" placeholder="City, and how far you travel" required aria-describedby="msg-base"><p class="msg" id="msg-base">Tell us the city you fly from.</p></div>
           <div class="field" data-for="operator"><label for="f-cert">Remote pilot certification</label><input id="f-cert" name="cert" type="text" placeholder="What you hold, and the issuing body"></div>
           <div class="field" data-for="operator"><label for="f-years">Years flying commercially</label><input id="f-years" name="years" type="text" placeholder="e.g. 4"></div>
           <div class="field" data-for="operator"><label for="f-kit">Aircraft</label><input id="f-kit" name="kit" type="text" placeholder="Model, and whether it is registered"></div>
           <div class="field" data-for="operator"><label for="f-cam">Camera &amp; formats</label><input id="f-cam" name="camera" type="text" placeholder="Sensor, max resolution, log profile"></div>
-          <div class="field full" data-for="operator"><label for="f-reel">Showreel *</label><input id="f-reel" name="reel" type="url" placeholder="Drive, Vimeo, YouTube or Instagram" required><p class="msg">We need to see you fly.</p></div>
+          <div class="field full" data-for="operator"><label for="f-reel">Showreel *</label><input id="f-reel" name="reel" type="url" placeholder="Drive, Vimeo, YouTube or Instagram" required aria-describedby="msg-reel"><p class="msg" id="msg-reel">We need to see you fly.</p></div>
           <div class="field full" data-for="operator"><label for="f-projects">Property work you’ve shot</label><textarea id="f-projects" name="projects" placeholder="Two or three projects, and what you delivered on each"></textarea></div>
           <div class="field" data-for="operator"><label for="f-rate-day">Day rate</label><input id="f-rate-day" name="rateDay" type="text" placeholder="Your full-day rate"></div>
           <div class="field" data-for="operator"><label for="f-rate-half">Half-day rate</label><input id="f-rate-half" name="rateHalf" type="text" placeholder="Your half-day rate"></div>
@@ -540,7 +553,7 @@
         <a href="#work">Work</a><a href="#services">Services</a><a href="#process">Process</a><a href="#faq">Questions</a>
         <a href="https://www.instagram.com/visualsbypolycrayons" rel="noopener">Instagram</a>
         <a href="https://www.polycrayons.com" rel="noopener">Part of Polycrayons</a>
-        <button type="button" class="motion-toggle" data-motion-toggle></button>
+        <button type="button" class="motion-toggle" data-motion-toggle>Motion</button>
       </nav>
       <p class="mono contact-ph">[ Email ] · [ Phone / WhatsApp ] · [ Legal entity ]</p>
       <p class="mono credits">District map data © <a href="https://www.openstreetmap.org/copyright" rel="noopener">OpenStreetMap contributors</a> · Feed footage: stock placeholders (Mixkit)</p>

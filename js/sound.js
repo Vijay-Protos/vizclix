@@ -1,7 +1,7 @@
 // VizClix — the drone's sound, synthesised in the browser, so there is nothing to download.
 // Off by default: it starts only when the visitor switches it on, which browsers require anyway.
-export function createSound() {
-  const ctx = new (window.AudioContext || window.webkitAudioContext)();
+// The AudioContext is made by the caller inside the click, because Safari only starts audio there.
+export function createSound(ctx) {
   const master = ctx.createGain(); master.gain.value = 0; master.connect(ctx.destination);
 
   // rotor wash: looping noise through a band-pass whose centre rises with the throttle
@@ -26,7 +26,10 @@ export function createSound() {
     get on() { return on; },
     set(v) {
       on = v;
-      if (v) ctx.resume();
+      if (v) {
+        ctx.resume().catch(() => { /* resumed on the next gesture */ });
+        master.gain.setTargetAtTime(0.08, ctx.currentTime, 0.2);   // audible even before update() runs
+      }
       else { master.gain.setTargetAtTime(0, ctx.currentTime, 0.2); setTimeout(() => { if (!on) ctx.suspend(); }, 900); }
     },
     // thr 0..1 is the throttle; near 0..1 is how present the drone is on screen

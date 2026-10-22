@@ -25,10 +25,15 @@ ol,ul{list-style:none}
 .wrap{max-width:1560px;margin:0 auto;padding-left:var(--padl);padding-right:var(--padr)}
 .skip-link{position:fixed;left:16px;top:-80px;z-index:200;background:var(--bone);color:var(--ink);padding:12px 18px;font-size:14px}
 .skip-link:focus{top:16px}
+.sr-only{position:absolute;width:1px;height:1px;margin:-1px;padding:0;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap;border:0}
+/* on the light sections (and the header over them) the ring takes the ink side */
+.bar.on-light :focus-visible,.route.on-light :focus-visible,.light :focus-visible{outline-color:var(--ink)}
 
 /* ---------- canvas, shutter, loader ---------- */
 #plate{position:fixed;inset:0;width:100%;height:100%;z-index:0;display:block;background:var(--ink)}
 #gl{position:fixed;inset:0;width:100%;height:100%;z-index:0;display:block;background:transparent}
+#gl{opacity:0;transition:opacity .9s var(--ease)}
+.world-on #gl{opacity:1}
 .shutter{position:fixed;inset:0;z-index:70;background:#fff;opacity:0;pointer-events:none}
 .loader{position:fixed;inset:0;z-index:120;background:var(--ink);display:flex;flex-direction:column;justify-content:center;padding-left:var(--padl);padding-right:var(--padr);transition:opacity .7s var(--ease),visibility .7s}
 .loader.done{opacity:0;visibility:hidden}
@@ -56,12 +61,14 @@ ol,ul{list-style:none}
 .menu-btn[aria-expanded="true"] i{transform:scaleY(.6)}
 
 .menu{position:fixed;inset:0;z-index:75;background:var(--ink);padding:calc(var(--bar) + 6vh) var(--padr) 40px var(--padl);display:flex;flex-direction:column;justify-content:space-between;opacity:0;visibility:hidden;transition:opacity .45s var(--ease),visibility .45s}
-.menu.open{opacity:1;visibility:visible}
+/* visible at once when opening (only the opacity fades), so focus can move into the menu */
+.menu.open{opacity:1;visibility:visible;transition:opacity .45s var(--ease),visibility 0s}
 .menu[hidden]{display:flex}
 .menu ol a{display:flex;align-items:baseline;gap:28px;font-size:clamp(34px,min(8vw,10vh),120px);line-height:1.08;letter-spacing:-.035em;font-weight:300;padding:.04em 0;transition:padding-left .5s var(--ease-out),color .3s}
 .menu ol a .mono{font-size:12px;color:var(--mist);width:34px}
 .menu ol a:hover{padding-left:.3em;color:var(--ember)}
-.menu-foot{display:flex;gap:36px;flex-wrap:wrap;color:var(--mist);font-size:15px}
+.menu-foot{display:flex;gap:4px 36px;flex-wrap:wrap;color:var(--mist);font-size:15px}
+.menu-foot a,.motion-toggle{min-height:44px;display:inline-flex;align-items:center}
 .menu-foot a:hover{color:var(--bone)}
 
 /* ---------- CTAs ---------- */
@@ -117,7 +124,7 @@ ol,ul{list-style:none}
 .intro-inner{max-width:1100px}
 .intro-inner .slash{margin-bottom:28px}
 .statement{font-size:clamp(28px,3.9vw,64px);line-height:1.14;letter-spacing:-.028em;font-weight:300;color:var(--bone)}
-.statement .w{opacity:.16;transition:opacity .25s linear}
+.statement .w{opacity:.42;transition:opacity .25s linear}
 
 /* ---------- flight ---------- */
 .flight{position:relative;z-index:1;height:620vh}
@@ -180,6 +187,7 @@ ol,ul{list-style:none}
 .svc-list h3{font-size:clamp(26px,3.1vw,50px);font-weight:300;letter-spacing:-.03em;line-height:1.05}
 .svc-list p{color:#B4B8BF;max-width:44ch;font-size:clamp(15px,1.15vw,18px)}
 .svc-list .tbc,.tbc{color:var(--altitude)}
+.light .tbc{color:#4A5F78}
 .svc-list .off h3,.svc-list .off p{color:#6B727C}
 
 /* light inversion */
@@ -274,7 +282,7 @@ details.q .a{padding:0 48px 30px 0;color:#B4B8BF;line-height:1.7;max-width:60ch;
 .foot-word{font-size:clamp(90px,25vw,420px);font-weight:200;letter-spacing:-.06em;line-height:.8;margin:0 0 clamp(48px,6vw,96px) -.03em;color:var(--bone);overflow:hidden;padding-bottom:.1em}
 .foot-row{display:grid;grid-template-columns:minmax(0,4fr) minmax(0,5fr) minmax(0,3fr);gap:32px;align-items:start;border-top:1px solid var(--line);padding-top:32px}
 .foot nav{display:flex;flex-wrap:wrap;gap:10px 30px;font-size:16px}
-.foot nav a{border-bottom:1px solid transparent;padding:4px 0;transition:border-color .3s}
+.foot nav a{border-bottom:1px solid transparent;padding:4px 0;transition:border-color .3s;min-height:44px;display:inline-flex;align-items:center}
 .foot nav a:hover{border-bottom-color:var(--ember)}
 .contact-ph{color:var(--altitude);line-height:1.8}
 
@@ -526,3 +534,11 @@ html.lenis,html.lenis body{height:auto}
 .no-gl .hud,.no-gl .rail,.no-gl .flight-stick::before{display:none}
 .no-gl .intro{height:auto}.no-gl .intro-stick{position:relative;height:auto;padding:14vh var(--padr) 14vh var(--padl)}
 .no-gl .statement .w{opacity:1}
+
+/* the section label and the clock share the header's middle: below 1400px there is room for one */
+@media (max-width:1400px){.bar-mid{display:none}}
+
+/* looping ornaments respect the OS setting even before (or without) JS */
+@media (prefers-reduced-motion:reduce){
+  .dotpulse,.scroll-cue i,.feed-hud .rec::before,.feed-plan .path,.sound-btn b{animation:none!important}
+}

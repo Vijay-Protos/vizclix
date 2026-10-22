@@ -28,7 +28,7 @@ ES modules need HTTP; opening the file directly will not work.
     js/main.js          scroll timeline, loader, motion preference
     js/scene.js         3D world, camera rig, section stations
     js/drone.js         procedural drone model
-    vendor/three/       Three.js r186 runtime (MIT)
+    vendor/three/       Three.js r186 runtime (MIT), minified with esbuild 0.28.2
     assets/work/        project imagery
     assets/feed/        drone camera-feed clips (stock placeholders)
     assets/city/        Thane West district from OpenStreetMap
@@ -52,7 +52,8 @@ by scroll. The stock clips are placeholders for VizClix's own footage.
 OpenStreetMap (© OpenStreetMap contributors, ODbL), built by `tools/district.py`. Heights are
 mapped where OSM has them and estimated from footprint size where it does not.
 
-Three.js r186 — MIT licence. Lenis 1.3.26 — MIT licence (vendor/lenis/LICENSE).
+Three.js r186 — MIT licence (vendored minified: `npx esbuild@0.28.2 <file> --minify --format=esm`, then point
+three.module.min.js at three.core.min.js). Lenis 1.3.26 — MIT licence (vendor/lenis/LICENSE).
 
 Project imagery under `assets/work/` is Polycrayons studio work.
 
