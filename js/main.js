@@ -283,7 +283,8 @@ function measureEscort() {
     const skip = (n) => !n.nodeValue.trim() || (phone && n.parentElement.closest('.bigword'));
     const tw = document.createTreeWalker(s, NodeFilter.SHOW_TEXT, { acceptNode: (n) => (skip(n) ? 2 : 1) });
     for (let n; (n = tw.nextNode());) rects(n).forEach((r) => add(r, 3));
-    $$('img,svg,.card,.slot,.cta-solid,.chip span,.cities li,input,select,textarea', s).forEach((el) => add(el.getBoundingClientRect(), 1));
+    // logo cells count whole: the lazy logos inside measure 0x0 until they load
+    $$('img,svg,.card,.slot,.logos li,.cta-solid,.chip span,.cities li,input,select,textarea', s).forEach((el) => add(el.getBoundingClientRect(), 1));
   }
   // the case-study image is sticky, so it can be anywhere down its column
   const shot = $('.study-shot');
@@ -675,5 +676,5 @@ addEventListener('resize', () => { layout(); if (world) { world.resize(); if (re
 
 boot3D().then(() => {
   requestAnimationFrame((n) => { last = n; loop(n); });
-  if (location.search.includes('debug')) window.__vc = { get T() { return timelineT(cur); }, get info() { return world && world.info(); }, get frames() { return frames; }, get docks() { return docks; }, get dock() { return lastDock; }, get lenis() { return lenis; }, get E() { return E; }, get loiter() { return loiter; }, drone, world };
+  if (location.search.includes('debug')) window.__vc = { get T() { return timelineT(cur); }, get info() { return world && world.info(); }, get frames() { return frames; }, get docks() { return docks; }, get dock() { return lastDock; }, get lenis() { return lenis; }, get E() { return E; }, cover, get obstacles() { return obstacles; }, get loiter() { return loiter; }, drone, world };
 });

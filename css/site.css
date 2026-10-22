@@ -212,7 +212,15 @@ ol,ul{list-style:none}
 .steps p{color:#B4B8BF;font-size:16px;line-height:1.6}
 
 /* proof */
-.slots{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:20px}
+.slots{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:20px}
+/* the studio's clients: one hairline grid, every mark in the same bone ink at the same optical size */
+.clients{margin-bottom:clamp(40px,5vw,72px)}
+.clients .slash{display:block;margin-bottom:14px}
+.clients-note{margin-bottom:clamp(28px,3vw,44px)}
+.logos{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));border-top:1px solid var(--line);border-left:1px solid var(--line)}
+.logos li{display:flex;align-items:center;justify-content:center;aspect-ratio:16/9;padding:clamp(12px,2vw,28px);border-right:1px solid var(--line);border-bottom:1px solid var(--line);min-width:0}
+.logos img{display:block;width:auto;height:auto;max-width:min(150px,100%);max-height:64px;opacity:.84;transition:opacity .3s var(--ease)}
+.logos li:hover img{opacity:1}
 .slot{min-height:230px;border:1px dashed rgba(124,147,173,.5);padding:26px;display:flex;flex-direction:column;justify-content:space-between}
 .slot .mono{color:var(--altitude)}
 .slot p{color:#B4B8BF;font-size:16px;line-height:1.5}
@@ -430,7 +438,7 @@ html.lenis,html.lenis body{height:auto}
 @media (max-width:1100px){
   .steps{grid-template-columns:repeat(3,minmax(0,1fr));row-gap:40px}
   .steps li:nth-child(4){border-left:0;padding-left:0}
-  .slots{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .logos{grid-template-columns:repeat(4,minmax(0,1fr))}
   .bar-mid{display:none}
   .route{display:none}
 }
@@ -485,6 +493,8 @@ html.lenis,html.lenis body{height:auto}
 }
 @media (max-width:560px){
   .slots{grid-template-columns:minmax(0,1fr)}
+  .logos{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .logos img{max-height:48px}
   .actions .cta-solid{width:100%;justify-content:space-between}
   .body{font-size:16px}
 }
