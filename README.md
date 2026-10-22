@@ -50,3 +50,7 @@ mapped where OSM has them and estimated from footprint size where it does not.
 Three.js r186 — MIT licence. Lenis 1.3.26 — MIT licence (vendor/lenis/LICENSE).
 
 Project imagery under `assets/work/` is Polycrayons studio work.
+
+Client logos under `assets/clients/` are the trademarks of their owners, taken from the
+client list on polycrayons.com/about and recoloured to the site palette. They are shown as
+Polycrayons' clients, not as VizClix clients.
