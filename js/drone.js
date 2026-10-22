@@ -361,7 +361,9 @@ export function buildDrone(THREE, addons = {}) {
       x.fill();
     }
     x.restore();
-    return new THREE.CanvasTexture(c);
+    const t = new THREE.CanvasTexture(c);
+    t.colorSpace = THREE.SRGBColorSpace;   // drawn in sRGB like the other canvas textures
+    return t;
   })();
 
   /* -------------------------------------------------------------- materials */
