@@ -43,6 +43,13 @@ Buildings at Night" by ArtHouse Studio, via Pexels. Free for commercial use
 under the Pexels licence; attribution is not required but is given here.
 https://www.pexels.com/video/drone-footage-of-buildings-at-night-8494852/
 
+`assets/feed/*.mp4` — stock placeholders from Mixkit (Mixkit Stock Video Free Licence),
+shown in the drone's camera feed until VizClix footage replaces them.
+
+`assets/city/thane-district.json` — building footprints, roads and lakes of Thane West from
+OpenStreetMap (© OpenStreetMap contributors, ODbL), built by `tools/district.py`. Heights are
+mapped where OSM has them and estimated from footprint size where it does not.
+
 Three.js r186 — MIT licence.
 
 Project imagery under `assets/work/` is Polycrayons studio work.
