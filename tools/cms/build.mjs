@@ -7,8 +7,8 @@
  * stops the build, so a markup change can never silently drop content.
  *
  * Media are downloaded into _site/assets/cms/ so visitors never load anything
- * from the CMS server. Without PAYLOAD_URL the page is published unchanged,
- * which keeps the site independent of the CMS.
+ * from the CMS server; only the enquiry popup posts to it. Without PAYLOAD_URL
+ * the page is published unchanged, which keeps the site independent of the CMS.
  *
  *   PAYLOAD_URL=https://dev.polycrayons.com npm run build
  */
@@ -307,6 +307,9 @@ function render(doc, d) {
   $('.contact-ph').textContent = f.contactLine ?? ''
   for (const a of $$('a[href^="https://www.instagram.com"]')) if (f.instagram) a.setAttribute('href', f.instagram)
   for (const a of $$('a')) if (f.parentUrl && a.textContent.trim() === 'Part of Polycrayons') a.setAttribute('href', f.parentUrl)
+
+  // ── The enquiry popup posts to the same CMS ──
+  $('meta[name="enquiry-endpoint"]').setAttribute('content', `${PAYLOAD_URL}/api/vizclix-enquiries/submit`)
 
   // ── SEO & sharing ──
   const seo = d.seo

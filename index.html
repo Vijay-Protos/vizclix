@@ -6,6 +6,8 @@
 <meta name="description" content="VizClix films and photographs developments, homes and land from the air, so a buyer understands the place before they ever visit.">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="theme-color" content="#0A0B0D">
+<!-- where the enquiry popup posts; filled in by the CMS build -->
+<meta name="enquiry-endpoint" content="">
 <meta name="robots" content="noindex, nofollow">
 <!-- canonical, og:url and the JSON-LD url move to https://vizclix.com/ when the domain is pointed -->
 <link rel="canonical" href="https://vijay-protos.github.io/vizclix/">
@@ -80,7 +82,7 @@
   <span class="bar-clock mono" id="clock" aria-hidden="true">Local 00:00</span>
   <div class="bar-right">
     <button class="sound-btn" id="sound-btn" type="button" aria-pressed="false" aria-label="Sound"><i aria-hidden="true"><b></b><b></b><b></b><b></b></i><span>Sound</span></button>
-    <a href="#contact" class="quote-link">Request a Quote</a>
+    <a href="#contact" class="quote-link" data-enquire="shoot">Request a Quote</a>
     <button class="menu-btn" id="menu-btn" type="button" aria-expanded="false" aria-controls="menu"><span>menu</span><i></i></button>
   </div>
 </header>
@@ -115,7 +117,7 @@
       <h1 class="h1" data-split>Property Deserves a Better First Impression<span class="dot">.</span></h1>
       <p class="body hero-body">We fly, film and grade aerial campaigns for developers, agents and architects. The footage a project gets launched on.</p>
       <div class="actions">
-        <a href="#contact" class="cta cta-solid">Request a Quote <svg width="18" height="12" viewBox="0 0 18 12" fill="none" aria-hidden="true"><path d="M0 6h16M11 1l5 5-5 5" stroke="currentColor" stroke-width="1.5"/></svg></a>
+        <a href="#contact" class="cta cta-solid" data-enquire="shoot">Request a Quote <svg width="18" height="12" viewBox="0 0 18 12" fill="none" aria-hidden="true"><path d="M0 6h16M11 1l5 5-5 5" stroke="currentColor" stroke-width="1.5"/></svg></a>
         <a href="#work" class="cta cta-line">Explore the Work <svg width="18" height="12" viewBox="0 0 18 12" fill="none" aria-hidden="true"><path d="M0 6h16M11 1l5 5-5 5" stroke="currentColor" stroke-width="1.5"/></svg></a>
       </div>
       <p class="motion-hint" id="motion-hint" hidden>
@@ -261,7 +263,7 @@
         <div class="study-block">
           <span class="slash">/ 04 — Delivered</span>
           <p>One graded launch film, a set of stills sized for print and listings, and vertical cuts for the sales team’s feed. Two flying days, one held in reserve for weather. <span class="mono tbc">[ Durations, counts and fees set per project ]</span></p>
-          <a href="#contact" class="link-arrow">Scope a Project Like This <svg width="18" height="12" viewBox="0 0 18 12" fill="none" aria-hidden="true"><path d="M0 6h16M11 1l5 5-5 5" stroke="currentColor" stroke-width="1.5"/></svg></a>
+          <a href="#contact" class="link-arrow" data-enquire="shoot">Scope a Project Like This <svg width="18" height="12" viewBox="0 0 18 12" fill="none" aria-hidden="true"><path d="M0 6h16M11 1l5 5-5 5" stroke="currentColor" stroke-width="1.5"/></svg></a>
         </div>
       </div>
     </div>
@@ -285,7 +287,7 @@
       <li><span class="mono n">05</span><h3>Social Cutdowns</h3><p>Vertical edits cut from the same flight, built for the feed rather than squeezed into it.</p><span class="mono tbc">[ Formats to confirm ]</span></li>
       <li><span class="mono n">06</span><h3>Film &amp; Render Together</h3><p>Flown footage matched to Polycrayons visualisation, so a project under construction can be shown finished. <a href="#study" class="inline-link">See the before and after</a></p><span class="mono tbc">[ Scope to confirm ]</span></li>
     </ol>
-    <p class="more"><a href="#contact" class="link-arrow">Explore a Scope with Us <svg width="18" height="12" viewBox="0 0 18 12" fill="none" aria-hidden="true"><path d="M0 6h16M11 1l5 5-5 5" stroke="currentColor" stroke-width="1.5"/></svg></a></p>
+    <p class="more"><a href="#contact" class="link-arrow" data-enquire="shoot">Explore a Scope with Us <svg width="18" height="12" viewBox="0 0 18 12" fill="none" aria-hidden="true"><path d="M0 6h16M11 1l5 5-5 5" stroke="currentColor" stroke-width="1.5"/></svg></a></p>
   </div>
 </section>
 
@@ -421,7 +423,7 @@
         <li>Bengaluru</li><li>Hyderabad</li><li>Chennai</li><li>Delhi NCR</li>
         <li>Ahmedabad</li><li>Kolkata</li><li>Jaipur</li><li>Kochi</li>
       </ul>
-      <p class="more"><a href="#contact" class="link-arrow" data-pick-partner>Apply to Fly With Us <svg width="18" height="12" viewBox="0 0 18 12" fill="none" aria-hidden="true"><path d="M0 6h16M11 1l5 5-5 5" stroke="currentColor" stroke-width="1.5"/></svg></a></p>
+      <p class="more"><a href="#contact" class="link-arrow" data-enquire="operator">Apply to Fly With Us <svg width="18" height="12" viewBox="0 0 18 12" fill="none" aria-hidden="true"><path d="M0 6h16M11 1l5 5-5 5" stroke="currentColor" stroke-width="1.5"/></svg></a></p>
     </div>
   </div>
 </section>
@@ -497,47 +499,14 @@
         <h2 class="h2">Let’s Talk<span class="dot">.</span></h2>
         <p class="body">Tell us about the site, or tell us about your flying. Either way a person reads it and writes back. <span class="mono tbc">[ Reply time to confirm ]</span></p>
       </div>
-      <form class="form" novalidate>
-        <fieldset class="paths">
-          <legend class="lab">I am here to</legend>
-          <label class="chip path"><input type="radio" name="path" value="shoot" checked data-path="shoot"><span>Book a shoot</span></label>
-          <label class="chip path"><input type="radio" name="path" value="operator" data-path="operator"><span>Fly for VizClix</span></label>
-        </fieldset>
-        <div class="fgrid">
-          <div class="field"><label for="f-name">Your Name *</label><input id="f-name" name="name" type="text" placeholder="Full name" autocomplete="name" required aria-describedby="msg-name"><p class="msg" id="msg-name">Please tell us your name.</p></div>
-          <div class="field"><label for="f-email">Email *</label><input id="f-email" name="email" type="email" placeholder="name@company.com" autocomplete="email" required aria-describedby="msg-email"><p class="msg" id="msg-email">Enter an email we can reply to.</p></div>
-          <div class="field"><label for="f-phone">Phone / WhatsApp</label><input id="f-phone" name="phone" type="tel" placeholder="Optional" autocomplete="tel"></div>
-          <div class="field" data-for="shoot"><label for="f-type">Property Type</label><select id="f-type" name="type"><option>Residential development</option><option>Single property</option><option>Commercial</option><option>Plot / land</option><option>Other</option></select></div>
-          <div class="field full" data-for="shoot"><label for="f-loc">Location *</label><input id="f-loc" name="location" type="text" placeholder="Area, city, or a map pin link" required aria-describedby="msg-loc"><p class="msg" id="msg-loc">Where is the property?</p></div>
-          <div class="field full" data-for="operator"><label for="f-base">Where you’re based *</label><input id="f-base" name="base" type="text" placeholder="City, and how far you travel" required aria-describedby="msg-base"><p class="msg" id="msg-base">Tell us the city you fly from.</p></div>
-          <div class="field" data-for="operator"><label for="f-cert">Remote pilot certification</label><input id="f-cert" name="cert" type="text" placeholder="What you hold, and the issuing body"></div>
-          <div class="field" data-for="operator"><label for="f-years">Years flying commercially</label><input id="f-years" name="years" type="text" placeholder="e.g. 4"></div>
-          <div class="field" data-for="operator"><label for="f-kit">Aircraft</label><input id="f-kit" name="kit" type="text" placeholder="Model, and whether it is registered"></div>
-          <div class="field" data-for="operator"><label for="f-cam">Camera &amp; formats</label><input id="f-cam" name="camera" type="text" placeholder="Sensor, max resolution, log profile"></div>
-          <div class="field full" data-for="operator"><label for="f-reel">Showreel *</label><input id="f-reel" name="reel" type="url" placeholder="Drive, Vimeo, YouTube or Instagram" required aria-describedby="msg-reel"><p class="msg" id="msg-reel">We need to see you fly.</p></div>
-          <div class="field full" data-for="operator"><label for="f-projects">Property work you’ve shot</label><textarea id="f-projects" name="projects" placeholder="Two or three projects, and what you delivered on each"></textarea></div>
-          <div class="field" data-for="operator"><label for="f-rate-day">Day rate</label><input id="f-rate-day" name="rateDay" type="text" placeholder="Your full-day rate"></div>
-          <div class="field" data-for="operator"><label for="f-rate-half">Half-day rate</label><input id="f-rate-half" name="rateHalf" type="text" placeholder="Your half-day rate"></div>
-          <div class="field" data-for="operator"><label for="f-travel">Travel &amp; outstation</label><input id="f-travel" name="travel" type="text" placeholder="How far you go, and what you charge for it"></div>
-          <div class="field" data-for="operator"><label for="f-avail">Availability</label><input id="f-avail" name="availability" type="text" placeholder="Notice you need, dawn / dusk / weekends"></div>
-          <div class="field full" data-for="shoot"><span class="lab" id="f-svc">What Do You Need?</span>
-            <div class="chips" role="group" aria-labelledby="f-svc">
-              <label class="chip"><input type="checkbox" name="svc" value="stills"><span>Stills</span></label>
-              <label class="chip"><input type="checkbox" name="svc" value="film"><span>Film</span></label>
-              <label class="chip"><input type="checkbox" name="svc" value="surroundings"><span>Surroundings</span></label>
-              <label class="chip"><input type="checkbox" name="svc" value="progress"><span>Construction Progress</span></label>
-              <label class="chip"><input type="checkbox" name="svc" value="unsure"><span>Not Sure Yet</span></label>
-            </div></div>
-          <div class="field" data-for="shoot"><label for="f-when">Preferred Timing</label><input id="f-when" name="timing" type="text" placeholder="e.g. before launch in March"></div>
-          <div class="field" data-for="shoot"><label for="f-link">Reference Link</label><input id="f-link" name="link" type="url" placeholder="Optional — brochure or site"></div>
-          <div class="field full"><label for="f-brief">Brief</label><textarea id="f-brief" name="brief" placeholder="Anything else we should know"></textarea></div>
-          <div class="full consent"><input id="f-consent" type="checkbox" name="consent" required><label for="f-consent">I agree to be contacted about this enquiry.</label></div>
-          <div class="full fsub">
-            <button type="button" class="cta cta-solid"><span data-send-label>Send Enquiry</span> <svg width="18" height="12" viewBox="0 0 18 12" fill="none" aria-hidden="true"><path d="M0 6h16M11 1l5 5-5 5" stroke="currentColor" stroke-width="1.5"/></svg></button>
-            <span class="mono note">[ Prototype — submission not wired ]</span>
-          </div>
+      <div class="contact-start">
+        <p class="slash">/ I am here to</p>
+        <div class="fsub contact-actions">
+          <a href="#contact" class="cta cta-solid" data-enquire="shoot">Book a Shoot <svg width="18" height="12" viewBox="0 0 18 12" fill="none" aria-hidden="true"><path d="M0 6h16M11 1l5 5-5 5" stroke="currentColor" stroke-width="1.5"/></svg></a>
+          <a href="#contact" class="cta cta-line" data-enquire="operator">Fly for VizClix <svg width="18" height="12" viewBox="0 0 18 12" fill="none" aria-hidden="true"><path d="M0 6h16M11 1l5 5-5 5" stroke="currentColor" stroke-width="1.5"/></svg></a>
         </div>
-      </form>
+        <p class="body contact-alt">Opens a short form. Or write to <span>info@protossofttech.com</span></p>
+      </div>
     </div>
   </div>
 </section>
@@ -560,6 +529,64 @@
     </div>
   </div>
 </footer>
+
+<!-- enquiry popup: every quote and apply link opens it; posts to the CMS (endpoint set at build) -->
+<dialog class="enquiry" id="enquiry" aria-labelledby="enquiry-title" data-lenis-prevent>
+  <div class="enquiry-in">
+    <div class="enquiry-top">
+      <div><p class="slash">/ Enquiry</p><h2 class="h2" id="enquiry-title">Tell Us About the Site<span class="dot">.</span></h2></div>
+      <button type="button" class="enquiry-close" data-enquiry-close aria-label="Close"><i aria-hidden="true"></i></button>
+    </div>
+    <form class="form" novalidate>
+      <div class="hp" aria-hidden="true"><label>Leave this empty <input name="website" tabindex="-1" autocomplete="off"></label></div>
+      <fieldset class="paths">
+        <legend class="lab">I am here to</legend>
+        <label class="chip path"><input type="radio" name="path" value="shoot" checked data-path="shoot"><span>Book a shoot</span></label>
+        <label class="chip path"><input type="radio" name="path" value="operator" data-path="operator"><span>Fly for VizClix</span></label>
+      </fieldset>
+      <div class="fgrid">
+        <div class="field"><label for="f-name">Your Name *</label><input id="f-name" name="name" type="text" placeholder="Full name" autocomplete="name" required aria-describedby="msg-name"><p class="msg" id="msg-name">Please tell us your name.</p></div>
+        <div class="field"><label for="f-email">Email *</label><input id="f-email" name="email" type="email" placeholder="name@company.com" autocomplete="email" required aria-describedby="msg-email"><p class="msg" id="msg-email">Enter an email we can reply to.</p></div>
+        <div class="field"><label for="f-phone">Phone / WhatsApp</label><input id="f-phone" name="phone" type="tel" placeholder="Optional" autocomplete="tel"></div>
+        <div class="field" data-for="shoot"><label for="f-type">Property Type</label><select id="f-type" name="type"><option>Residential development</option><option>Single property</option><option>Commercial</option><option>Plot / land</option><option>Other</option></select></div>
+        <div class="field full" data-for="shoot"><label for="f-loc">Location *</label><input id="f-loc" name="location" type="text" placeholder="Area, city, or a map pin link" required aria-describedby="msg-loc"><p class="msg" id="msg-loc">Where is the property?</p></div>
+        <div class="field full" data-for="operator"><label for="f-base">Where you’re based *</label><input id="f-base" name="base" type="text" placeholder="City, and how far you travel" required aria-describedby="msg-base"><p class="msg" id="msg-base">Tell us the city you fly from.</p></div>
+        <div class="field" data-for="operator"><label for="f-cert">Remote pilot certification</label><input id="f-cert" name="cert" type="text" placeholder="What you hold, and the issuing body"></div>
+        <div class="field" data-for="operator"><label for="f-years">Years flying commercially</label><input id="f-years" name="years" type="text" placeholder="e.g. 4"></div>
+        <div class="field" data-for="operator"><label for="f-kit">Aircraft</label><input id="f-kit" name="kit" type="text" placeholder="Model, and whether it is registered"></div>
+        <div class="field" data-for="operator"><label for="f-cam">Camera &amp; formats</label><input id="f-cam" name="camera" type="text" placeholder="Sensor, max resolution, log profile"></div>
+        <div class="field full" data-for="operator"><label for="f-reel">Showreel *</label><input id="f-reel" name="reel" type="url" placeholder="Drive, Vimeo, YouTube or Instagram" required aria-describedby="msg-reel"><p class="msg" id="msg-reel">We need to see you fly.</p></div>
+        <div class="field full" data-for="operator"><label for="f-projects">Property work you’ve shot</label><textarea id="f-projects" name="projects" placeholder="Two or three projects, and what you delivered on each"></textarea></div>
+        <div class="field" data-for="operator"><label for="f-rate-day">Day rate</label><input id="f-rate-day" name="rateDay" type="text" placeholder="Your full-day rate"></div>
+        <div class="field" data-for="operator"><label for="f-rate-half">Half-day rate</label><input id="f-rate-half" name="rateHalf" type="text" placeholder="Your half-day rate"></div>
+        <div class="field" data-for="operator"><label for="f-travel">Travel &amp; outstation</label><input id="f-travel" name="travel" type="text" placeholder="How far you go, and what you charge for it"></div>
+        <div class="field" data-for="operator"><label for="f-avail">Availability</label><input id="f-avail" name="availability" type="text" placeholder="Notice you need, dawn / dusk / weekends"></div>
+        <div class="field full" data-for="shoot"><span class="lab" id="f-svc">What Do You Need?</span>
+          <div class="chips" role="group" aria-labelledby="f-svc">
+            <label class="chip"><input type="checkbox" name="svc" value="stills"><span>Stills</span></label>
+            <label class="chip"><input type="checkbox" name="svc" value="film"><span>Film</span></label>
+            <label class="chip"><input type="checkbox" name="svc" value="surroundings"><span>Surroundings</span></label>
+            <label class="chip"><input type="checkbox" name="svc" value="progress"><span>Construction Progress</span></label>
+            <label class="chip"><input type="checkbox" name="svc" value="unsure"><span>Not Sure Yet</span></label>
+          </div></div>
+        <div class="field" data-for="shoot"><label for="f-when">Preferred Timing</label><input id="f-when" name="timing" type="text" placeholder="e.g. before launch in March"></div>
+        <div class="field" data-for="shoot"><label for="f-link">Reference Link</label><input id="f-link" name="link" type="url" placeholder="Optional — brochure or site"></div>
+        <div class="field full"><label for="f-brief">Brief</label><textarea id="f-brief" name="brief" placeholder="Anything else we should know"></textarea></div>
+        <div class="full consent"><input id="f-consent" type="checkbox" name="consent" required aria-describedby="msg-consent"><label for="f-consent">I agree to be contacted about this enquiry.</label><p class="msg" id="msg-consent">Please agree so we can reply.</p></div>
+        <div class="full fsub form-send">
+          <button type="submit" class="cta cta-solid"><span data-send-label>Send Enquiry</span> <svg width="18" height="12" viewBox="0 0 18 12" fill="none" aria-hidden="true"><path d="M0 6h16M11 1l5 5-5 5" stroke="currentColor" stroke-width="1.5"/></svg></button>
+          <p class="form-status" role="status" aria-live="polite"></p>
+        </div>
+      </div>
+    </form>
+    <div class="enquiry-done" hidden>
+      <p class="slash">/ Received</p>
+      <h2 class="h2" tabindex="-1">Thank You — We Have It<span class="dot">.</span></h2>
+      <p class="body">A person reads every enquiry and writes back from info@protossofttech.com.</p>
+      <button type="button" class="cta cta-line" data-enquiry-close>Back to the Site <svg width="18" height="12" viewBox="0 0 18 12" fill="none" aria-hidden="true"><path d="M0 6h16M11 1l5 5-5 5" stroke="currentColor" stroke-width="1.5"/></svg></button>
+    </div>
+  </div>
+</dialog>
 
 <script type="module" src="js/main.js"></script>
 </body>
