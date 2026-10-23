@@ -156,11 +156,67 @@ function applyPath() {
   if (sendLabel) sendLabel.textContent = picked === 'operator' ? 'Apply to the Network' : 'Send Enquiry';
 }
 pathInputs.forEach((i) => i.addEventListener('change', applyPath));
-$$('[data-pick-partner]').forEach((a) => a.addEventListener('click', () => {
-  const op = pathInputs.find((i) => i.value === 'operator');
-  if (op) { op.checked = true; applyPath(); }
-}));
 applyPath();
+
+/* ---------- enquiry popup ---------- */
+// every quote / apply link opens it on the right path; without the popup they still scroll to #contact
+const enquiry = $('#enquiry'), form = $('form', enquiry), done = $('.enquiry-done', enquiry);
+const status = $('.form-status', form), sendBtn = $('button[type="submit"]', form);
+const endpoint = document.querySelector('meta[name="enquiry-endpoint"]')?.content;
+let startedAt = 0;
+function openEnquiry(path) {
+  const pick = pathInputs.find((i) => i.value === path);
+  if (pick) { pick.checked = true; applyPath(); }
+  form.hidden = false; done.hidden = true; enquiry.classList.remove('sent'); status.textContent = '';
+  startedAt = Date.now();
+  if (lenis) lenis.stop();
+  enquiry.showModal();
+}
+enquiry.addEventListener('close', () => { if (lenis) lenis.start(); });
+$$('[data-enquire]').forEach((a) => a.addEventListener('click', (e) => {
+  if (e.button || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
+  e.preventDefault();
+  openEnquiry(a.dataset.enquire);
+}));
+$$('[data-enquiry-close]', enquiry).forEach((b) => b.addEventListener('click', () => enquiry.close()));
+// a click on the backdrop (outside the panel) closes it, like Escape
+enquiry.addEventListener('click', (e) => { if (e.target === enquiry) enquiry.close(); });
+// a server message on a field shows until that field is edited
+form.addEventListener('input', (e) => {
+  const f = e.target.closest('.field, .consent');
+  if (f && f.classList.contains('server-err')) f.classList.remove('server-err');
+});
+form.addEventListener('submit', async (e) => {
+  e.preventDefault();
+  form.classList.add('tried');
+  if (!form.checkValidity()) { $(':invalid', form)?.focus(); status.textContent = 'Please check the highlighted fields.'; return; }
+  if (!endpoint) { status.textContent = 'Enquiries are not connected on this copy of the site. Please write to info@protossofttech.com.'; return; }
+  const body = new URLSearchParams(new FormData(form));
+  body.set('startedAt', String(startedAt));
+  sendBtn.disabled = true; sendLabel.textContent = 'Sending…'; status.textContent = '';
+  try {
+    const res = await fetch(endpoint, { method: 'POST', body });
+    const out = await res.json().catch(() => ({}));
+    if (res.ok && out.status === 'success') {
+      form.reset(); form.classList.remove('tried'); applyPath();
+      form.hidden = true; done.hidden = false; enquiry.classList.add('sent'); enquiry.scrollTop = 0; $('h2', done).focus();
+      return;
+    }
+    for (const [name, msg] of Object.entries(out.fieldErrors || {})) {
+      const f = form.elements[name], wrap = f && (f.length ? f[0] : f).closest('.field, .consent');
+      if (!wrap) continue;
+      const m = $('.msg', wrap);
+      if (m) m.textContent = msg;
+      wrap.classList.add('server-err');
+    }
+    status.textContent = out.message || 'That did not go through. Please try again, or write to info@protossofttech.com.';
+    $('.server-err input, .server-err textarea, .server-err select', form)?.focus();
+  } catch {
+    status.textContent = 'Could not reach us. Check the connection and try again, or write to info@protossofttech.com.';
+  } finally {
+    sendBtn.disabled = false; applyPath();
+  }
+});
 
 /* ---------- anchors ---------- */
 document.addEventListener('click', (e) => {
@@ -316,7 +372,7 @@ function measureEscort() {
     for (const o of obs) if (o[0] < r && o[2] > l && o[1] < b && o[3] > t) return false;
     return true;
   };
-  docks = $$('.sec-head .h2, .more .link-arrow, .study-block .link-arrow, .fsub .cta').map((el) => {
+  docks = $$('.sec-head .h2, .more .link-arrow, .study-block .link-arrow, .contact-actions .cta').map((el) => {
     const lines = (el.matches('.h2') ? rects(el) : [el.getBoundingClientRect()])
       .filter((r) => r.width > 1).map((r) => [r.left, r.top + sy, r.right, r.bottom + sy]);
     if (!lines.length) return null;
