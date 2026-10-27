@@ -741,6 +741,35 @@ async function boot3D() {
   }
 }
 
+/* ---------- the ground under the Perspective section ---------- */
+// loaded only as the section approaches; scrolling through it raises the plan into buildings
+const groundEl = $('#perspective .ground');
+let ground = null;
+if (groundEl) {
+  const near = new IntersectionObserver(([en]) => {
+    if (!en.isIntersecting) return;
+    near.disconnect();
+    import('./cubes.js').then(({ createCubes }) => {
+      ground = createCubes(groundEl, { reduce });
+      placeGround();
+      groundEl.classList.add('on');
+      addEventListener('resize', placeGround);
+    }).catch(() => { /* no WebGL: the section keeps its plain ground */ });
+  }, { rootMargin: '100% 0px' });
+  near.observe(groundEl);
+}
+// the property stands just above the line over the cards, toward the right: clear of the copy,
+// and under the spot where the drone holds for this section
+function placeGround() {
+  const c = groundEl.getBoundingClientRect(), t = $('#perspective .three').getBoundingClientRect();
+  ground.setFocus(t.right - c.left - (t.width < 600 ? 130 : Math.min(220, t.width * 0.16)), t.top - c.top - 6);
+}
+function groundRise() {
+  // flat as the section comes up from below, fully raised by the time its cards are mid-screen
+  const r = groundEl.getBoundingClientRect();
+  return smooth(clamp((vh - r.top) / (vh * 1.1)));
+}
+
 /* ---------- sky layer and shadow, behind and under the drone once it flies in front ---------- */
 const skyEl = $('#sky'), shadowEl = $('#drone-shadow');
 function paintSky([top, mid, foot], d) {
@@ -799,6 +828,7 @@ function loop(now) {
       if (frames === 90 && slow > 40 && !dprDropped) { dprDropped = true; world.renderer.setPixelRatio(1); world.resize(); }
     }
   }
+  if (ground) ground.update(dt, groundRise(), root.classList.contains('front') ? lastDock : null);
   requestAnimationFrame(loop);
 }
 
@@ -814,5 +844,5 @@ addEventListener('resize', () => {
 
 boot3D().then(() => {
   requestAnimationFrame((n) => { last = n; loop(n); });
-  if (location.search.includes('debug')) window.__vc = { get T() { return timelineT(cur); }, get info() { return world && world.info(); }, get frames() { return frames; }, get docks() { return docks; }, get dock() { return lastDock; }, get lenis() { return lenis; }, get E() { return E; }, cover, get obstacles() { return obstacles; }, get loiter() { return loiter; }, drone, world };
+  if (location.search.includes('debug')) window.__vc = { get T() { return timelineT(cur); }, get info() { return world && world.info(); }, get frames() { return frames; }, get docks() { return docks; }, get dock() { return lastDock; }, get ground() { return ground; }, get lenis() { return lenis; }, get E() { return E; }, cover, get obstacles() { return obstacles; }, get loiter() { return loiter; }, drone, world };
 });
