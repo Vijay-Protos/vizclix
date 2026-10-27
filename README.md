@@ -36,11 +36,11 @@ ES modules need HTTP; opening the file directly will not work.
     vendor/lenis/       Lenis 1.3.26 smooth scrolling (MIT)
 
 ## Content
-Every word, list and image is edited in the Polycrayons admin (dev.polycrayons.com,
+Every word, list and image is edited in the Polycrayons admin (polycrayons.com/admin,
 site **VizClix** in the sidebar selector, then **VizClix Page**). Publishing there
 triggers `.github/workflows/pages.yml`, which runs the build and publishes to Pages.
 
-    PAYLOAD_URL=https://dev.polycrayons.com npm run build   # writes _site/
+    PAYLOAD_URL=https://polycrayons.com npm run build   # writes _site/
 
 `tools/cms/build.mjs` fills `index.html` with the published content and downloads
 its media into `_site/assets/cms/`, so visitors never load from the CMS. It stops

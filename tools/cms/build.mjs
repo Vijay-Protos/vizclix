@@ -10,7 +10,7 @@
  * from the CMS server; only the enquiry popup posts to it. Without PAYLOAD_URL
  * the page is published unchanged, which keeps the site independent of the CMS.
  *
- *   PAYLOAD_URL=https://dev.polycrayons.com npm run build
+ *   PAYLOAD_URL=https://polycrayons.com npm run build
  */
 import { cp, mkdir, rm, writeFile, readFile } from 'node:fs/promises'
 import { parseHTML } from 'linkedom'
