@@ -48,11 +48,17 @@ setTimeout(finishLoader, 4000); // never trap a visitor behind the loader
 
 /* ---------- text helpers ---------- */
 function splitHeading(el) {
-  const text = el.textContent.replace(/\.$/, '').trim();
-  const words = text.split(/\s+/);
+  // words, each remembering whether it sits in a heavy-weight <b class="em"> run
+  const words = [];
+  for (const n of el.childNodes) {
+    if (n.nodeType === 1 && n.classList.contains('dot')) continue;
+    const em = n.nodeType === 1 && n.classList.contains('em');
+    for (const w of n.textContent.split(/\s+/)) if (w) words.push({ w, em });
+  }
+  const text = words.map((x) => x.w).join(' ').replace(/\.$/, '');
   el.setAttribute('aria-label', text + '.');
-  el.innerHTML = words.map((w, i) =>
-    `<span class="wd" aria-hidden="true"><span style="--i:${i}">${w}${i === words.length - 1 ? '<span class="dot">.</span>' : ''}</span></span>`).join(' ');
+  el.innerHTML = words.map(({ w, em }, i) =>
+    `<span class="wd${em ? ' em' : ''}" aria-hidden="true"><span style="--i:${i}">${w}${i === words.length - 1 ? '<span class="dot">.</span>' : ''}</span></span>`).join(' ');
 }
 $$('[data-split]').forEach(splitHeading);
 

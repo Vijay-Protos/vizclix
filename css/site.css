@@ -609,3 +609,31 @@ html.lenis,html.lenis body{height:auto}
 @media (prefers-reduced-motion:reduce){
   .dotpulse,.scroll-cue i,.feed-hud .rec::before,.feed-plan .path,.sound-btn b{animation:none!important}
 }
+
+/* ---------- rich type: weight contrast, film slates, the studio's record set large ---------- */
+/* headlines read twice: the whole line in the light cut, the promise in the heavy one */
+.h1 .em,.h2 .em,.h1 .wd.em{font-weight:600;letter-spacing:-.042em;color:#F6F2EA}
+.light .h2 .em{color:var(--ink)}
+.h2{line-height:.98;letter-spacing:-.038em}
+/* the camera readout under each section's index: scene, hour of the shoot day, altitude */
+.slate{display:grid;gap:5px;margin-top:16px;font-family:var(--mono);font-size:10.5px;letter-spacing:.14em;text-transform:uppercase;color:var(--mist);line-height:1.3}
+.slate span:first-child{color:var(--ember)}
+.light .slate{color:#6A707A}
+/* the big outlined section words: the first letter solid, as if the camera has locked on to it */
+.bigword .ch:first-child{color:rgba(255,107,53,.88);-webkit-text-stroke-color:transparent}
+/* the parent studio's record */
+.stats{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));border-top:1px solid var(--line);margin-bottom:clamp(48px,6vw,96px)}
+.stat{display:grid;gap:10px;align-content:start;padding:clamp(22px,2.6vw,40px) clamp(14px,2vw,32px) clamp(22px,2.6vw,40px) 0}
+.stat + .stat{border-left:1px solid var(--line);padding-left:clamp(14px,2vw,32px)}
+.stat b{font-weight:200;font-size:clamp(52px,7.2vw,124px);line-height:.88;letter-spacing:-.055em;color:#F6F2EA;font-variant-numeric:tabular-nums}
+.stat span{font-family:var(--mono);font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--mist)}
+.stats-note{grid-column:1 / -1;margin:6px 0 0;color:var(--mist)}
+@media (max-width:900px){
+  .stats{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .stat:nth-child(3){border-left:0;padding-left:0}
+  .stat:nth-child(n+3){border-top:1px solid var(--line)}
+  /* phones: the readout becomes one line above the heading */
+  .sec-head .idx{display:flex;flex-wrap:wrap;gap:4px 12px;align-items:baseline;padding-top:0}
+  .sec-head .idx::after{display:none}
+  .slate{display:contents}
+}
