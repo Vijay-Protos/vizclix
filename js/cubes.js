@@ -39,7 +39,8 @@ const frag = /* glsl */`
   void main() {
     vec3 c = vN.y > 0.5 ? uTop : (abs(vN.x) > 0.5 ? uLeft : uRight);
     // sunk tiles shade, so a trough reads as depth rather than a gap
-    if (vN.y > 0.5) c = mix(c, uLeft, clamp(-vTop * 1.4, 0.0, 0.7));
+    // pressed tops darken like ground in the drone's shade; a raised rim catches the light
+    if (vN.y > 0.5) c = vTop < 0.0 ? mix(c, uLeft * 0.82, clamp(-vTop * 2.6, 0.0, 0.85)) : mix(c, vec3(1.0), clamp(vWave * 0.9, 0.0, 0.35));
     // the property: an ember roof that warms as it rises
     if (vOwn > 0.5) c = vN.y > 0.5 ? mix(c, uEmber, 0.35 + 0.6 * uRise) : mix(c, uLeft, 0.35);
     // a moving crest catches the light
@@ -69,11 +70,11 @@ export function createCubes(canvas, { reduce = false, colors } = {}) {
     },
   });
 
-  let n = 0, h, v, prev, mesh = null, waveAttr = null, cellPx = 80;
+  let n = 0, h, v, prev, fixed, dent, mesh = null, waveAttr = null, cellPx = 80;
   function build(size) {
     if (mesh) { scene.remove(mesh); mesh.geometry.dispose(); }
     n = size;
-    h = new Float32Array(n * n); v = new Float32Array(n * n); prev = new Float32Array(n * n);
+    h = new Float32Array(n * n); v = new Float32Array(n * n); prev = new Float32Array(n * n); fixed = new Uint8Array(n * n); dent = new Float32Array(n * n);
     const box = new THREE.BoxGeometry(0.94, 1, 0.94).translate(0, 0.5, 0);
     const g = new THREE.InstancedBufferGeometry();
     g.index = box.index;
@@ -88,7 +89,7 @@ export function createCubes(canvas, { reduce = false, colors } = {}) {
       // the property: two towers on the central plot
       // two slender towers side by side on screen: (0,0) and its right-hand neighbour (1,-1)
       const t1 = bi === 0 && bj === 0, t2 = bi === 1 && bj === -1;
-      if (t1 || t2) { base[k] = t1 ? 1.5 : 1.15; own[k] = 1; continue; }
+      if (t1 || t2) { base[k] = t1 ? 1.5 : 1.15; own[k] = 1; fixed[k] = 1; continue; }
       // streets every fifth row and column; the central plot stays open ground around the towers
       const street = ((bi % 4) + 4) % 4 === 3 || ((bj % 4) + 4) % 4 === 3;
       if (street || (Math.abs(bi) <= 2 && Math.abs(bj) <= 2)) { base[k] = 0; continue; }
@@ -142,6 +143,24 @@ export function createCubes(canvas, { reduce = false, colors } = {}) {
       for (let j = Math.max(1, Math.round(gj) - reach); j <= Math.min(n - 2, Math.round(gj) + reach); j++)
         v[i * n + j] -= amount * Math.exp(-((i - gi) ** 2 + (j - gj) ** 2) * inv);
   }
+  // the downdraft: a dent under the drone, deepest straight below and gone a couple of blocks
+  // out, laid on top of the ripples so the rest of the ground never moves. Towers stand firm.
+  const WASH_R = 3.0, RIM = 0.3;   // dent radius in blocks; the rim's height as a share of the dent
+  let wash = null, dentBox = null;
+  function shapeDent() {
+    if (dentBox) for (let i = dentBox[0]; i <= dentBox[1]; i++) for (let j = dentBox[2]; j <= dentBox[3]; j++) dent[i * n + j] = 0;
+    dentBox = null;
+    if (!wash || wash.depth < 1e-3) return;
+    const { i: gi, j: gj, depth } = wash, reach = Math.ceil(WASH_R * 1.5);
+    dentBox = [Math.max(0, Math.round(gi) - reach), Math.min(n - 1, Math.round(gi) + reach), Math.max(0, Math.round(gj) - reach), Math.min(n - 1, Math.round(gj) + reach)];
+    for (let i = dentBox[0]; i <= dentBox[1]; i++) for (let j = dentBox[2]; j <= dentBox[3]; j++) {
+      // pressed flat in the middle, and the air pushed out piles a low rim around it
+      const k = i * n + j, x = Math.hypot(i - gi, j - gj) / WASH_R;
+      if (fixed[k] || x > 1.5) continue;
+      const press = x < 1 ? (1 - x * x) ** 2 : 0, rim = Math.exp(-(((x - 1.05) / 0.22) ** 2));
+      dent[k] = depth * (RIM * rim - press);
+    }
+  }
   function step() {
     prev.set(h);
     for (let i = 1; i < n - 1; i++) for (let j = 1; j < n - 1; j++) {
@@ -153,7 +172,7 @@ export function createCubes(canvas, { reduce = false, colors } = {}) {
     return e;
   }
 
-  let acc = 0, energy = 0, washT = 0, lastPtr = null, ptr = null, visible = false, lastRise = -1;
+  let acc = 0, energy = 0, washT = 0, washDepth = 0, lastPtr = null, ptr = null, visible = false, lastRise = -1;
   const onMove = (e) => {
     const r = canvas.getBoundingClientRect();
     const x = e.clientX - r.left, y = e.clientY - r.top;
@@ -179,20 +198,31 @@ export function createCubes(canvas, { reduce = false, colors } = {}) {
         }
         lastPtr = g;
       } else lastPtr = null;
-      // rotor wash: while the drone hangs over the ground it pushes a ring down every beat
+      // rotor wash: the closer a block is to the point under the drone, the harder it is pressed
+      // down; more throttle, deeper dent. It eases in as the drone arrives and springs back after.
+      let target = 0, g = null;
       if (drone) {
         const r = canvas.getBoundingClientRect();
-        const x = drone.x - r.left, y = drone.y - r.top + drone.w * 0.35;
-        if (x > 0 && y > 0 && x < r.width && y < r.height) {
-          washT += dt;
-          if (washT > 0.32) { washT = 0; const g = toGrid(x, y); if (g) { push(g.i, g.j, 0.07, 1.3); energy = 1; } }
-        }
+        const x = drone.x - r.left, y = drone.y - r.top + drone.w * 0.35;   // the spot its shadow falls on
+        if (x > 0 && y > 0 && x < r.width && y < r.height && (g = toGrid(x, y))) target = 0.95 * Math.min(1, drone.thr ?? 0.8);
+      }
+      washDepth += (target - washDepth) * (1 - Math.exp(-dt * (target > washDepth ? 2.5 : 1.5)));
+      if (g) {
+        const f = 1 - Math.exp(-dt * 6);
+        wash = wash ? { i: wash.i + (g.i - wash.i) * f, j: wash.j + (g.j - wash.j) * f, depth: washDepth } : { i: g.i, j: g.j, depth: washDepth };
+      } else if (wash) wash.depth = washDepth;
+      shapeDent();
+      if (washDepth > 1e-3) {
+        energy = 1;
+        // and a soft ring rolls out from under it every beat
+        washT += dt;
+        if (g && washT > 0.42) { washT = 0; push(g.i, g.j, 0.035 * washDepth / 0.95, 1.2); }
       }
       if (energy > EPS) {
         acc = Math.min(acc + dt, STEP * 6);
         while (acc >= STEP) { energy = step(); acc -= STEP; }
         const a = acc / STEP, out = waveAttr.array;
-        for (let k = 0; k < out.length; k++) out[k] = prev[k] + (h[k] - prev[k]) * a;
+        for (let k = 0; k < out.length; k++) out[k] = prev[k] + (h[k] - prev[k]) * a + dent[k];
         waveAttr.needsUpdate = true;
         dirty = true;
       }
@@ -202,6 +232,12 @@ export function createCubes(canvas, { reduce = false, colors } = {}) {
 
   return {
     update, resize,
+    /** debug: the dent's depth and how far down blocks sit at rising distance from the drone */
+    info() {
+      if (!wash) return { washDepth };
+      const ring = (lo, hi) => { let m = 0, c = 0; for (let i = 1; i < n - 1; i++) for (let j = 1; j < n - 1; j++) { const d = Math.hypot(i - wash.i, j - wash.j), k = i * n + j; if (d >= lo && d < hi && !fixed[k]) { m += waveAttr.array[k]; c++; } } return c ? +(m / c).toFixed(3) : null; };
+      return { washDepth: +washDepth.toFixed(3), under: ring(0, 1), near: ring(1, 2), edge: ring(2, 3), far: ring(5, 8) };
+    },
     /** where the property stands, in canvas pixels (its towers rise from this point) */
     setFocus(x, y) { focus = { x, y }; resize(); },
     dispose() { io.disconnect(); removeEventListener('pointermove', onMove); mesh?.geometry.dispose(); mat.dispose(); renderer.dispose(); },

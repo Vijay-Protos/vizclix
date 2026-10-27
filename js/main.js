@@ -844,5 +844,5 @@ addEventListener('resize', () => {
 
 boot3D().then(() => {
   requestAnimationFrame((n) => { last = n; loop(n); });
-  if (location.search.includes('debug')) window.__vc = { get T() { return timelineT(cur); }, get info() { return world && world.info(); }, get frames() { return frames; }, get docks() { return docks; }, get dock() { return lastDock; }, get lenis() { return lenis; }, get E() { return E; }, cover, get obstacles() { return obstacles; }, get loiter() { return loiter; }, drone, world };
+  if (location.search.includes('debug')) window.__vc = { get T() { return timelineT(cur); }, get info() { return world && world.info(); }, get frames() { return frames; }, get docks() { return docks; }, get dock() { return lastDock; }, get ground() { return ground; }, get lenis() { return lenis; }, get E() { return E; }, cover, get obstacles() { return obstacles; }, get loiter() { return loiter; }, drone, world };
 });
