@@ -61,6 +61,17 @@ function render(doc, d) {
     for (const n of [...el.childNodes]) if (n.nodeType === 3) n.remove()
     el.prepend(doc.createTextNode(el.querySelector('svg') ? `${s} ` : s))
   }
+  /** A heading: its words, with *starred* words set in the heavy weight, keeping the ember dot. */
+  const rich = (el, s = '') => {
+    for (const n of [...el.childNodes]) if (n.nodeType === 3 || (n.nodeType === 1 && n.classList.contains('em'))) n.remove()
+    const parts = s.split(/(\*[^*]+\*)/).filter(Boolean)
+    const first = el.firstChild
+    for (const part of parts) {
+      if (part.startsWith('*') && part.endsWith('*')) {
+        const b = doc.createElement('b'); b.className = 'em'; b.textContent = part.slice(1, -1); el.insertBefore(b, first)
+      } else el.insertBefore(doc.createTextNode(part), first)
+    }
+  }
   /** The small "[ … ]" placeholder after a line. */
   const note = (el, s) => {
     for (const c of [...el.children]) if (c.classList.contains('tbc')) c.remove()
@@ -102,7 +113,7 @@ function render(doc, d) {
   }
   const head = (sec, h) => {
     const sh = $('.sec-head', sec)
-    text($('.h2', sh), h.heading)
+    rich($('.h2', sh), h.heading)
     let body = sh.querySelector('p.body')
     if (h.body || h.note) {
       if (!body) sh.append((body = Object.assign(doc.createElement('p'), { className: 'body' })))
@@ -122,7 +133,7 @@ function render(doc, d) {
   // ── Hero & intro ──
   const hero = $('#hero')
   text($('.hero-copy > .slash', hero), d.hero.eyebrow)
-  text($('.h1', hero), d.hero.heading)
+  rich($('.h1', hero), d.hero.heading)
   text($('.hero-body', hero), d.hero.body)
   text($('.cta-solid', hero), d.hero.primaryCta)
   text($('.cta-line', hero), d.hero.secondaryCta)
@@ -147,7 +158,7 @@ function render(doc, d) {
   chapters.forEach((el, i) => {
     const c = d.chapters[i]
     text($('.slash', el), `/ ${c.label}`)
-    text($('.h2', el), c.heading)
+    rich($('.h2', el), c.heading)
     text($('.body', el), c.body)
     let a = el.querySelector('.link-arrow')
     if (c.linkLabel) {
