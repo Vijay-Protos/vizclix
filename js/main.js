@@ -21,9 +21,9 @@ if (!reduce) import('../vendor/lenis/lenis.mjs').then(({ default: Lenis }) => { 
 
 /* ---------- loader: counts real milestones ---------- */
 const loader = $('#loader'), loaderN = $('#loader-n'), loaderBar = $('#loader-bar');
-// the loader waits only for what the first screen is made of: the fonts and the film's first frame.
+// the loader waits only for what the first screen is made of: the fonts.
 // The 3D drone fades in when it is ready (html.world-on) and only then flies out of the fog.
-const steps = { fonts: false, film: false };
+const steps = { fonts: false };
 let shown = 0, loaderDone = false;
 const minShow = performance.now() + 500;
 function loaderTick() {
@@ -663,56 +663,24 @@ $$('.ba').forEach((ba) => {
   r.addEventListener('input', () => ba.style.setProperty('--split', r.value + '%'));
 });
 
-/* ---------- the film: sections 1-5 play a shot cut in After Effects, scrubbed by scroll ----------
-   tools/film/ builds it from aerial clips and the property render; the frames are in assets/film/
-   (l/ 1600 px, s/ 960 px for phones). They load coarse to fine, every 8th first, and until a frame
-   has arrived the nearest loaded one is drawn. The 3D drone flies over it. */
-const FILM_N = 183, FILM_FPS = 12;
-// scroll timeline T -> seconds into the film; the fog-bank cuts land between the flight chapters
-const FILM_MAP = [[0, 0], [1.85, 3.45], [2.05, 5.3], [2.32, 7.2], [2.42, 9.05], [2.66, 10.95], [2.76, 12.8], [3, 15.17]];
+/* ---------- the night city: sections 1-5 fly over a city drawn in code (js/night.js) ----------
+   It replaces the After Effects film: the same shot timing on the scroll timeline, a fraction of
+   the download. The first screen is the type, so the loader does not wait for it; the city fades
+   in when ready. If WebGL is missing, the 3D world's own fallback takes over. */
 const plateEl = $('#plate');
-const film = (() => {
-  const ctx = plateEl.getContext('2d');
-  const dir = 'assets/film/' + (innerWidth < 900 ? 's/' : 'l/');
-  const frames = new Array(FILM_N);
-  const saveData = !!(navigator.connection && navigator.connection.saveData);
-  const order = reduce ? [0] : [0, FILM_N - 1];
-  if (!reduce) for (const step of saveData ? [8, 4] : [8, 4, 2, 1]) for (let i = 0; i < FILM_N; i += step) if (!order.includes(i)) order.push(i);
-  const coarse = Math.ceil(FILM_N / 8) + 2;    // the first pass: enough to scrub, loaded at once
-  let failed = false, settled = document.readyState === 'complete';
-  if (!settled) addEventListener('load', () => { settled = true; setTimeout(pump, 300); }, { once: true });
-  let shown = -1, inflight = 0, next = 0;
-  function pump() {
-    while (inflight < 6 && next < order.length && (settled || next < coarse)) {
-      const i = order[next++], im = new Image();
-      inflight++;
-      im.onload = () => { frames[i] = im; inflight--; if (i === 0) steps.film = true; shown = -1; pump(); };
-      im.onerror = () => { inflight--; if (i === 0) { failed = true; steps.film = true; } pump(); };
-      im.src = dir + String(i).padStart(3, '0') + '.webp';
-    }
-  }
-  pump();
-  function size() {
-    const d = Math.min(devicePixelRatio || 1, 1.5);
-    plateEl.width = Math.round(innerWidth * d); plateEl.height = Math.round(innerHeight * d); shown = -1;
-  }
-  size(); addEventListener('resize', size);
+const night = (() => {
+  let api = null, failed = false;
+  // started only once the first screen has painted and the browser is idle, so building the city
+  // never competes with the headline and the quote button for the first second
+  const start = () => import('./night.js')
+    .then(({ createNight }) => { api = createNight(plateEl, { reduce, small }); })
+    .catch(() => { failed = true; });
+  const idle = window.requestIdleCallback || ((f) => setTimeout(f, 200));
+  requestAnimationFrame(() => requestAnimationFrame(() => idle(start, { timeout: 1500 })));
   return {
-    get ready() { return !!frames[0]; },
+    get ready() { return !!api; },
     get failed() { return failed; },
-    draw(T) {
-      let t = FILM_MAP[FILM_MAP.length - 1][1];
-      for (let i = 1; i < FILM_MAP.length; i++) {
-        if (T <= FILM_MAP[i][0]) { const [a, ta] = FILM_MAP[i - 1], [b, tb] = FILM_MAP[i]; t = ta + (tb - ta) * clamp((T - a) / (b - a)); break; }
-      }
-      const want = Math.min(FILM_N - 1, Math.round(t * FILM_FPS));
-      let j = -1;
-      for (let d = 0; d < FILM_N && j < 0; d++) j = frames[want - d] ? want - d : frames[want + d] ? want + d : -1;
-      if (j < 0 || j === shown) return;
-      shown = j;
-      const im = frames[j], s = Math.max(plateEl.width / im.width, plateEl.height / im.height), w = im.width * s, h = im.height * s;
-      ctx.drawImage(im, (plateEl.width - w) / 2, (plateEl.height - h) / 2, w, h);
-    },
+    draw(T) { if (api) api.draw(T); },
   };
 })();
 
@@ -741,34 +709,47 @@ async function boot3D() {
   }
 }
 
-/* ---------- the ground under the Perspective section ---------- */
-// loaded only as the section approaches; scrolling through it raises the plan into buildings
-const groundEl = $('#perspective .ground');
-let ground = null;
-if (groundEl) {
-  const near = new IntersectionObserver(([en]) => {
+/* ---------- section backgrounds, each loaded only as its section approaches ----------
+   The cube ground (js/cubes.js): under Perspective a plan that rises into the address, under
+   Let's Talk a dark landing pad. The flight plan (Process) and the city network (Fly With Us)
+   are SVG (js/backdrops.js). Each redraws only while it is on screen and something moves. */
+const layers = [];
+function whenNear(target, load) {
+  if (!target) return;
+  const io = new IntersectionObserver(([en]) => {
     if (!en.isIntersecting) return;
-    near.disconnect();
-    import('./cubes.js').then(({ createCubes }) => {
-      ground = createCubes(groundEl, { reduce });
-      placeGround();
-      groundEl.classList.add('on');
-      addEventListener('resize', placeGround);
-    }).catch(() => { /* no WebGL: the section keeps its plain ground */ });
+    io.disconnect();
+    load().then((layer) => { if (!layer) return; layers.push(layer); target.classList.add('on'); })
+      .catch(() => { /* no WebGL or SVG geometry: the section keeps its plain ground */ });
   }, { rootMargin: '100% 0px' });
-  near.observe(groundEl);
+  io.observe(target);
 }
-// the property stands just above the line over the cards, toward the right: clear of the copy,
-// and under the spot where the drone holds for this section
-function placeGround() {
-  const c = groundEl.getBoundingClientRect(), t = $('#perspective .three').getBoundingClientRect();
-  ground.setFocus(t.right - c.left - (t.width < 600 ? 130 : Math.min(220, t.width * 0.16)), t.top - c.top - 6);
+// 0 as a section's top comes up from below, 1 a screen and a bit later
+const riseOf = (target) => smooth(clamp((vh - target.getBoundingClientRect().top) / (vh * 1.1)));
+function mountGround(canvasEl, opts, focus) {
+  whenNear(canvasEl, () => import('./cubes.js').then(({ createCubes }) => {
+    const g = createCubes(canvasEl, { reduce, ...opts });
+    const place = () => { const f = focus(canvasEl.getBoundingClientRect()); g.setFocus(f.x, f.y); };
+    place();
+    addEventListener('resize', place);
+    return { update: (dt, droneAt) => g.update(dt, riseOf(canvasEl), droneAt), get ground() { return g; } };
+  }));
 }
-function groundRise() {
-  // flat as the section comes up from below, fully raised by the time its cards are mid-screen
-  const r = groundEl.getBoundingClientRect();
-  return smooth(clamp((vh - r.top) / (vh * 1.1)));
-}
+// Perspective: the property stands just above the line over the cards, toward the right
+mountGround($('#perspective .ground'), {}, (c) => {
+  const t = $('#perspective .three').getBoundingClientRect();
+  return { x: t.right - c.left - (t.width < 600 ? 130 : Math.min(220, t.width * 0.16)), y: t.top - c.top - 6 };
+});
+// Let's Talk: a dark pad that ripples in ember, centred under the buttons where the drone lands
+mountGround($('#contact .ground'), {
+  property: false, crest: [0.24, 0.36],
+  colors: { top: '#15181E', left: '#0A0C0F', right: '#0F1216', ember: '#FF6B35', rim: '#C9653F' },
+}, (c) => {
+  const a = $('#contact .contact-actions').getBoundingClientRect();
+  return { x: a.right - c.left + 70, y: a.bottom - c.top + 40 };
+});
+whenNear($('#process .plan'), () => import('./backdrops.js').then((m) => m.flightPlan($('#process'), $('#process .plan'), { reduce })));
+whenNear($('#partner .map'), () => import('./backdrops.js').then((m) => m.cityNetwork($('#partner'), $('#partner .map'), { reduce })));
 
 /* ---------- sky layer and shadow, behind and under the drone once it flies in front ---------- */
 const skyEl = $('#sky'), shadowEl = $('#drone-shadow');
@@ -794,15 +775,15 @@ function loop(now) {
   if (Math.abs(y - cur) < 0.1) cur = y;
   const T = timelineT(cur);
   updateDom(T, cur);
-  film.draw(reduce ? 0 : T);
-  // the film gives way to the page's dusk sky as the escort begins
+  night.draw(reduce ? 0 : T);
+  // the city gives way to the page's dusk sky as the escort begins
   const po = reduce ? clamp(1 - y / (vh * 0.9)) : 1 - clamp((T - 3) / 0.3);
   if (plateEl.style.opacity !== String(po)) plateEl.style.opacity = String(po);
 
   if (world && !root.classList.contains('no-gl')) {
     if (reduce) {
       canvas.style.opacity = String(clamp(1 - y / (vh * 0.9)));
-      if (!loop.drawn && (film.ready || film.failed)) { world.update({ T: 0, time: 1, dt: 0, light: 0, film: !film.failed }); loop.drawn = true; }
+      if (!loop.drawn && (night.ready || night.failed)) { world.update({ T: 0, time: 1, dt: 0, light: 0, film: !night.failed }); loop.drawn = true; }
     } else if (!document.hidden) {
       const mix = lightMix(y);
       // Whenever the canvas is anything but full ink, dark sections hold their own background:
@@ -816,7 +797,7 @@ function loop(now) {
       root.classList.toggle('front', front);
       if (!introAt && loaderDone) introAt = now + 250;    // the fly-in starts once the page is showing
       const intro = introAt ? clamp((now - introAt) / 2600) : 0;
-      world.update({ T, time, dt, light: mix, dock, hour: hourAt(y), spin, front, intro, film: !film.failed });
+      world.update({ T, time, dt, light: mix, dock, hour: hourAt(y), spin, front, intro, film: !night.failed });
       if (T >= 2.9) paintSky(world.skyStops(mix), front ? dock : null);
       if (sound && sound.on) {
         const seen = !dock || (dock.x > -60 && dock.x < innerWidth + 60 && dock.y > -60 && dock.y < vh + 60);
@@ -828,7 +809,7 @@ function loop(now) {
       if (frames === 90 && slow > 40 && !dprDropped) { dprDropped = true; world.renderer.setPixelRatio(1); world.resize(); }
     }
   }
-  if (ground) ground.update(dt, groundRise(), root.classList.contains('front') ? lastDock : null);
+  for (const layer of layers) layer.update(dt, root.classList.contains('front') ? lastDock : null);
   requestAnimationFrame(loop);
 }
 
@@ -844,5 +825,5 @@ addEventListener('resize', () => {
 
 boot3D().then(() => {
   requestAnimationFrame((n) => { last = n; loop(n); });
-  if (location.search.includes('debug')) window.__vc = { get T() { return timelineT(cur); }, get info() { return world && world.info(); }, get frames() { return frames; }, get docks() { return docks; }, get dock() { return lastDock; }, get ground() { return ground; }, get lenis() { return lenis; }, get E() { return E; }, cover, get obstacles() { return obstacles; }, get loiter() { return loiter; }, drone, world };
+  if (location.search.includes('debug')) window.__vc = { get T() { return timelineT(cur); }, timelineT, get info() { return world && world.info(); }, get frames() { return frames; }, get docks() { return docks; }, get dock() { return lastDock; }, get ground() { return layers.find((l) => l.ground)?.ground; }, layers, get lenis() { return lenis; }, get E() { return E; }, cover, get obstacles() { return obstacles; }, get loiter() { return loiter; }, drone, world };
 });

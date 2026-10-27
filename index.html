@@ -30,8 +30,6 @@
 <link rel="stylesheet" href="css/site.css">
 <!-- what the loader waits for, fetched at once rather than one after another -->
 <link rel="modulepreload" href="js/main.js">
-<link rel="preload" as="image" href="assets/film/l/000.webp" media="(min-width: 900px)" fetchpriority="high">
-<link rel="preload" as="image" href="assets/film/s/000.webp" media="(max-width: 899.98px)" fetchpriority="high">
 <script type="importmap">
 { "imports": { "three": "./vendor/three/three.module.min.js", "three/addons/": "./vendor/three/addons/" } }
 </script>
@@ -42,7 +40,7 @@
 <div class="progress" aria-hidden="true"><i id="progress-fill"></i></div>
 <!-- sky layer: behind the page once the drone flies in front of it (html.front) -->
 <div class="sky" id="sky" aria-hidden="true"></div>
-<!-- the film behind sections 1-5: frames rendered in After Effects, scrubbed by scroll -->
+<!-- the night city behind sections 1-5: drawn in code (js/night.js), flown by the scroll -->
 <canvas id="plate" aria-hidden="true"></canvas>
 <canvas id="gl" aria-hidden="true"></canvas>
 <div class="drone-shadow" id="drone-shadow" aria-hidden="true"></div>
@@ -343,7 +341,7 @@
 </section>
 
 <!-- ============ / 10 PERSPECTIVE (light inversion) ============ -->
-<section class="sec perspective light" id="perspective" data-hour="8.5" data-feed="assets/feed/lake-city.mp4|Context|stock" data-section="/ 10 — Perspective">
+<section class="sec perspective light has-ground" id="perspective" data-hour="8.5" data-feed="assets/feed/lake-city.mp4|Context|stock" data-section="/ 10 — Perspective">
   <!-- the ground under the drone: a plan that rises into the address as you scroll (js/cubes.js) -->
   <canvas class="ground" aria-hidden="true"></canvas>
   <div class="wrap">
@@ -370,7 +368,9 @@
 </section>
 
 <!-- ============ / 09 PROCESS ============ -->
-<section class="sec process light" id="process" data-hour="11.0" data-feed="plan|Flight Plan" data-section="/ 11 — Process">
+<section class="sec process light has-ground" id="process" data-hour="11.0" data-feed="plan|Flight Plan" data-section="/ 11 — Process">
+  <!-- the flight plan: survey contours and the route through each step (js/backdrops.js) -->
+  <svg class="backdrop plan" aria-hidden="true" focusable="false"></svg>
   <div class="wrap">
     <div class="bigword" aria-hidden="true" data-bigword>Process</div>
     <div class="sec-head">
@@ -390,7 +390,9 @@
 
 
 <!-- ============ / 10 PARTNER NETWORK ============ -->
-<section class="sec partner" id="partner" data-hour="16.9" data-feed="assets/feed/drone-city-lights.mp4|Network|stock" data-section="/ 12 — Fly With Us">
+<section class="sec partner has-ground" id="partner" data-hour="16.9" data-feed="assets/feed/drone-city-lights.mp4|Network|stock" data-section="/ 12 — Fly With Us">
+  <!-- the network: the section's cities on the map, routes reaching out from the hub (js/backdrops.js) -->
+  <svg class="backdrop map" aria-hidden="true" focusable="false"></svg>
   <div class="wrap">
     <div class="bigword" aria-hidden="true" data-bigword>Network</div>
     <div class="sec-head">
@@ -492,7 +494,9 @@
 </section>
 
 <!-- ============ / 12 CONTACT ============ -->
-<section class="sec contact" id="contact" data-hour="18.6" data-feed="assets/feed/towers-night.mp4|Dusk Hold|stock" data-section="/ 15 — Let’s Talk">
+<section class="sec contact has-ground" id="contact" data-hour="18.6" data-feed="assets/feed/towers-night.mp4|Dusk Hold|stock" data-section="/ 15 — Let’s Talk">
+  <!-- the landing pad: the ground the drone sets down on, under the buttons (js/cubes.js) -->
+  <canvas class="ground" aria-hidden="true"></canvas>
   <div class="wrap">
     <div class="bigword" aria-hidden="true" data-bigword>Talk</div>
     <div class="contact-grid">
