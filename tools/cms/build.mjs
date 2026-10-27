@@ -179,6 +179,10 @@ function render(doc, d) {
       el.querySelector('.sr-only')?.remove()
     }
     img($('img.art', el), c.image)
+    // an optional short clip that plays over the image (js/main.js); the image stays the poster
+    const clip = media(c.video)
+    if (clip) el.setAttribute('data-video', clip.src)
+    else el.removeAttribute('data-video')
     $('.ph', el).textContent = `[ ${c.tag || 'Studio Work'} ]`
     text($('.meta .slash', el), c.credit ? `/ Work — ${c.credit}` : '/ Work')
     text($('h3', el), c.title)
