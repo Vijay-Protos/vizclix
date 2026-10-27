@@ -663,6 +663,41 @@ function spinStep(dt) {
   spin.vp += (-w * w * spin.pitch - 2 * w * spin.vp) * dt; spin.pitch += spin.vp * dt;
 }
 
+/* ---------- work cards: a short clip plays over the image ----------
+   Desktop: on hover, from the start, paused when the pointer leaves. Phones (no hover): while the
+   card is mostly on screen, one card at a time. Nothing downloads until a card asks for its clip,
+   and with reduced motion the image simply stays. */
+const clipCards = $$('.card[data-video]');
+if (clipCards.length && !reduce) {
+  const clipOf = (card) => {
+    let v = $('video.card-video', card);
+    if (!v) {
+      v = Object.assign(document.createElement('video'), { muted: true, loop: true, playsInline: true, preload: 'auto', src: card.dataset.video });
+      v.className = 'card-video';
+      v.setAttribute('aria-hidden', 'true');
+      $('.art', card).after(v);
+    }
+    return v;
+  };
+  const play = (card) => { const v = clipOf(card); v.currentTime = 0; v.play().then(() => card.classList.add('playing')).catch(() => {}); };
+  const stop = (card) => { card.classList.remove('playing'); const v = $('video.card-video', card); if (v) v.pause(); };
+  if (matchMedia('(hover: hover)').matches) {
+    for (const card of clipCards) {
+      card.addEventListener('pointerenter', () => play(card));
+      card.addEventListener('pointerleave', () => stop(card));
+    }
+  } else {
+    let current = null;
+    const io = new IntersectionObserver((es) => {
+      for (const e of es) {
+        if (e.isIntersecting && e.intersectionRatio > 0.6) { if (current && current !== e.target) stop(current); current = e.target; play(current); }
+        else if (e.target === current) { stop(current); current = null; }
+      }
+    }, { threshold: [0, 0.6] });
+    clipCards.forEach((card) => io.observe(card));
+  }
+}
+
 /* ---------- case study: survey → finished ---------- */
 $$('.ba').forEach((ba) => {
   const r = $('.ba-range', ba);
