@@ -34,7 +34,7 @@ jobs:
         env:
           # A repository variable PAYLOAD_URL points the build at another CMS server.
           # To publish index.html as written, without a CMS, remove this line.
-          PAYLOAD_URL: ${{ vars.PAYLOAD_URL || 'https://dev.polycrayons.com' }}
+          PAYLOAD_URL: ${{ vars.PAYLOAD_URL || 'https://polycrayons.com' }}
           VIZCLIX_SITE: vizclix
       - uses: actions/upload-pages-artifact@v3
         with:
