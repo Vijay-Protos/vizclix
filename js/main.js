@@ -676,7 +676,9 @@ const night = (() => {
     .then(({ createNight }) => { api = createNight(plateEl, { reduce, small }); })
     .catch(() => { failed = true; });
   const idle = window.requestIdleCallback || ((f) => setTimeout(f, 200));
-  requestAnimationFrame(() => requestAnimationFrame(() => idle(start, { timeout: 1500 })));
+  const later = () => requestAnimationFrame(() => requestAnimationFrame(() => idle(start, { timeout: 1500 })));
+  // after the page's own load, so the headline and buttons always paint first
+  if (document.readyState === 'complete') later(); else addEventListener('load', later, { once: true });
   return {
     get ready() { return !!api; },
     get failed() { return failed; },
@@ -736,7 +738,7 @@ function mountGround(canvasEl, opts, focus) {
   }));
 }
 // Perspective: the property stands just above the line over the cards, toward the right
-mountGround($('#perspective .ground'), {}, (c) => {
+mountGround($('#perspective .ground'), { shade: 0.18 }, (c) => {
   const t = $('#perspective .three').getBoundingClientRect();
   return { x: t.right - c.left - (t.width < 600 ? 130 : Math.min(220, t.width * 0.16)), y: t.top - c.top - 6 };
 });

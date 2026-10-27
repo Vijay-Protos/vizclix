@@ -229,6 +229,62 @@ export function createNight(canvas, { reduce = false, small = false } = {}) {
     return b;
   });
 
+  // ---- the cloud deck the opening shot descends through ----
+  // Soft puffs on camera-facing sprites, moonlit grey-blue. They drift on the wind, part away from
+  // the line the camera and drone fly as it passes, and leave the property's plot open so the
+  // towers show through from the first frame. Below the deck they thin to nothing, so the city
+  // reads clean for the chapters.
+  function puff(seed) {
+    // a cumulus: a cluster of firm, round cells (not a soft blob, which reads as mist),
+    // moonlit on top and shaded underneath so it has volume
+    const c = document.createElement('canvas'); c.width = c.height = 256;
+    const g = c.getContext('2d');
+    let r = seed * 7919 + 13;
+    const rnd = () => ((r = (r * 9301 + 49297) % 233280) / 233280);
+    for (let i = 0; i < 16; i++) {
+      const x = 128 + (rnd() - 0.5) * 130, y = 140 + (rnd() - 0.5) * 40 - Math.abs(rnd() - 0.5) * 40, rad = 20 + rnd() * 34;
+      const gr = g.createRadialGradient(x, y, 0, x, y, rad);
+      gr.addColorStop(0, 'rgba(255,255,255,0.62)'); gr.addColorStop(0.62, 'rgba(255,255,255,0.42)'); gr.addColorStop(1, 'rgba(255,255,255,0)');
+      g.fillStyle = gr; g.beginPath(); g.arc(x, y, rad, 0, Math.PI * 2); g.fill();
+    }
+    g.globalCompositeOperation = 'source-atop';
+    const shade = g.createLinearGradient(0, 90, 0, 200);
+    shade.addColorStop(0, 'rgba(255,255,255,0)'); shade.addColorStop(1, 'rgba(40,46,60,0.7)');
+    g.fillStyle = shade; g.fillRect(0, 0, 256, 256);
+    const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace;
+    return t;
+  }
+  const puffs = [puff(1), puff(2), puff(3)];
+  const clouds = [];
+  for (let i = 0, tries = 0; clouds.length < (small ? 22 : 46) && tries < 500; tries++) {
+    const x = (hash(i, tries) - 0.5) * 90, z = -45 + hash(tries, i) * 85;
+    if (Math.hypot(x, z + 12) < 10) continue;                       // the hole over the property
+    const m = new THREE.SpriteMaterial({ map: puffs[i % 3], color: 0xaab6c8, transparent: true, depthWrite: false, opacity: 0 });
+    const sp = new THREE.Sprite(m);
+    const size = 8 + hash(i * 3, tries) * 8;
+    sp.scale.set(size, size * 0.62, 1);
+    clouds.push({ sp, x, z, y: 13 + hash(i * 7, tries * 3) * 6, a: 0.6 + hash(tries, i * 5) * 0.35 });
+    scene.add(sp);
+    i++;
+  }
+  function moveClouds(t, T) {
+    const deck = 1 - Math.min(1, Math.max(0, (T - 1.95) / 0.35));        // gone before the boulevard
+    for (const c of clouds) {
+      // drift on the wind, wrapping across the city
+      let x = ((c.x + t * 0.55 + 45) % 90 + 90) % 90 - 45, z = c.z;
+      // part away from the line of flight: the nearer the camera passes, the further they lean off
+      const dx = x - cam.x, dz = z - cam.z, d = Math.hypot(dx, dz) || 1;
+      const near = Math.max(0, 1 - Math.abs(c.y - cam.y) / 7) * Math.max(0, 1 - d / 14);
+      x += (dx / d) * near * 9; z += (dz / d) * near * 9;
+      c.sp.position.set(x, c.y, z);
+      // and never smother the lens: fade as the camera gets close
+      const dist = c.sp.position.distanceTo(cam);
+      c.sp.material.opacity = c.a * deck * Math.min(1, Math.max(0, (dist - 4) / 7)) * common.uFade.value;
+      c.sp.visible = c.sp.material.opacity > 0.01;
+    }
+    return deck;
+  }
+
   const cam = new THREE.Vector3(), look = new THREE.Vector3();
   let w = 0, h = 0, lastT = -1, lastPaint = 0, born = performance.now();
   function resize() {
@@ -248,7 +304,9 @@ export function createNight(canvas, { reduce = false, small = false } = {}) {
     const now = performance.now();
     const fade = reduce ? 1 : Math.min(1, (now - born) / 900);
     const moved = Math.abs(T - lastT) > 1e-4;
-    if (!moved && fade >= 1 && now - lastPaint < (reduce ? 1e9 : 90)) return;   // ~11 fps idle life
+    // the city's life ticks at ~11 fps; while the cloud deck is in shot it drifts at ~30
+    const life = !reduce && T < 2.3 ? 33 : 90;
+    if (!moved && fade >= 1 && now - lastPaint < (reduce ? 1e9 : life)) return;
     lastT = T; lastPaint = now;
     common.uFade.value = fade;
     common.uTime.value = reduce ? 0 : now / 1000;
@@ -256,6 +314,7 @@ export function createNight(canvas, { reduce = false, small = false } = {}) {
     shotAt(reduce ? 0 : T, cam, look, w / h < 0.8);
     camera.position.copy(cam);
     camera.lookAt(look);
+    moveClouds(reduce ? 0 : now / 1000, reduce ? 0 : T);
     renderer.render(scene, camera);
   }
   return { draw, resize, get size() { return seeds.length; } };

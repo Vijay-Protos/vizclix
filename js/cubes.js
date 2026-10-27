@@ -25,20 +25,27 @@ const vert = /* glsl */`
   uniform float uRise, uAmp;
   varying vec3 vN;
   varying float vWave, vOwn, vTop;
+  varying vec2 vXZ;
   void main() {
     vec3 p = position;
     float top = aBase * uRise + aWave * uAmp;
     p.y = p.y > 0.0 ? top : -12.0;         // deep columns: troughs never show an underside
     p.xz += aCell;
-    vN = normal; vWave = aWave; vOwn = aOwn; vTop = top;
+    vN = normal; vWave = aWave; vOwn = aOwn; vTop = top; vXZ = p.xz;
     gl_Position = projectionMatrix * modelViewMatrix * vec4(p, 1.0);
   }`;
 
 const frag = /* glsl */`
   uniform vec3 uTop, uLeft, uRight, uEmber, uRim;
-  uniform float uRise, uCrestTop, uCrestSide;
+  uniform float uRise, uCrestTop, uCrestSide, uShade, uTime;
   varying vec3 vN;
   varying float vWave, vOwn, vTop;
+  varying vec2 vXZ;
+  // soft value noise, summed over three octaves: the shape of cloud shadows on the ground
+  float h2(vec2 p) { p = fract(p * vec2(0.1031, 0.103)); p += dot(p, p.yx + 33.33); return fract((p.x + p.y) * p.x); }
+  float vn(vec2 p) { vec2 i = floor(p), f = fract(p); f = f * f * (3.0 - 2.0 * f);
+    return mix(mix(h2(i), h2(i + vec2(1, 0)), f.x), mix(h2(i + vec2(0, 1)), h2(i + vec2(1, 1)), f.x), f.y); }
+  float fbm(vec2 p) { return vn(p) * 0.55 + vn(p * 2.1) * 0.3 + vn(p * 4.3) * 0.15; }
   void main() {
     vec3 c = vN.y > 0.5 ? uTop : (abs(vN.x) > 0.5 ? uLeft : uRight);
     // sunk tiles shade, so a trough reads as depth rather than a gap
@@ -48,6 +55,8 @@ const frag = /* glsl */`
     if (vOwn > 0.5) c = vN.y > 0.5 ? mix(c, uEmber, 0.35 + 0.6 * uRise) : mix(c, uLeft, 0.35);
     // a moving crest catches the light
     c = mix(c, uEmber, clamp(abs(vWave) * 0.9, 0.0, 0.6) * (vN.y > 0.5 ? uCrestTop : uCrestSide));
+    // cloud shadows drifting across the ground on the wind (day scenes only)
+    if (uShade > 0.0) c *= 1.0 - uShade * smoothstep(0.52, 0.72, fbm(vXZ * 0.07 + vec2(uTime * 0.035, uTime * 0.012)));
     gl_FragColor = vec4(c, 1.0);
     #include <colorspace_fragment>
   }`;
@@ -55,7 +64,7 @@ const frag = /* glsl */`
 // a fixed scatter, so the town is the same on every visit
 const hash = (i, j) => { const s = Math.sin(i * 127.1 + j * 311.7) * 43758.5453; return s - Math.floor(s); };
 
-export function createCubes(canvas, { reduce = false, colors, property = true, crest = [0.07, 0.14] } = {}) {
+export function createCubes(canvas, { reduce = false, colors, property = true, crest = [0.07, 0.14], shade = 0 } = {}) {
   const col = { top: '#EDE8DF', left: '#D9D2C5', right: '#E4DED3', ember: '#FF6B35', rim: '#FFFFFF', ...colors };
   const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true, powerPreference: 'low-power' });
   renderer.setClearColor(0x000000, 0);
@@ -71,6 +80,7 @@ export function createCubes(canvas, { reduce = false, colors, property = true, c
       uTop: { value: new THREE.Color(col.top) }, uLeft: { value: new THREE.Color(col.left) },
       uRight: { value: new THREE.Color(col.right) }, uEmber: { value: new THREE.Color(col.ember) },
       uRim: { value: new THREE.Color(col.rim) }, uCrestTop: { value: crest[0] }, uCrestSide: { value: crest[1] },
+      uShade: { value: shade }, uTime: { value: 7 },
     },
   });
 
@@ -176,7 +186,7 @@ export function createCubes(canvas, { reduce = false, colors, property = true, c
     return e;
   }
 
-  let acc = 0, energy = 0, washT = 0, washDepth = 0, lastPtr = null, ptr = null, visible = false, lastRise = -1, down = false;
+  let acc = 0, energy = 0, washT = 0, washDepth = 0, lastPtr = null, ptr = null, visible = false, lastRise = -1, down = false, shadeT = 0;
   const onMove = (e) => {
     const r = canvas.getBoundingClientRect();
     const x = e.clientX - r.left, y = e.clientY - r.top;
@@ -234,6 +244,11 @@ export function createCubes(canvas, { reduce = false, colors, property = true, c
         waveAttr.needsUpdate = true;
         dirty = true;
       }
+    }
+    if (shade && !reduce) {
+      mat.uniforms.uTime.value += dt;
+      shadeT += dt;
+      if (shadeT > 1 / 24) { shadeT = 0; dirty = true; }
     }
     if (dirty) { renderer.render(scene, camera); dirty = false; }
   }
