@@ -28,6 +28,9 @@ ES modules need HTTP; opening the file directly will not work.
     css/site.css        tokens and layout
     js/main.js          scroll timeline, loader, motion preference
     js/scene.js         3D world, camera rig, section stations
+    js/night.js         the night city behind sections 1-5
+    js/cubes.js         the cube ground (Perspective, Let's Talk)
+    js/backdrops.js     the flight plan (Process) and city network (Fly With Us)
     js/drone.js         procedural drone model
     vendor/three/       Three.js r186 runtime (MIT), minified with esbuild 0.28.2
     assets/work/        project imagery
@@ -58,10 +61,11 @@ A visitor can override it from the hero prompt or the footer switch.
 `assets/feed/*.mp4` — stock placeholders from Mixkit (Mixkit Stock Video Free Licence),
 shown in the drone's camera feed until VizClix footage replaces them.
 
-`assets/film/` — the sections 1-5 background: one shot cut and graded in After Effects
-(`tools/film/build.jsx`) from Mixkit stock clips 41375, 42041 and 42342 (Mixkit Stock Video
-Free Licence) and the Polycrayons render of Mahavir Springs, exported as WebP frames and scrubbed
-by scroll. The stock clips are placeholders for VizClix's own footage.
+Section backgrounds are drawn in code, so they cost almost nothing to download:
+`js/night.js` (sections 1-5: the night city the drone flies over, ending on the property's
+towers), `js/cubes.js` (the ground under Perspective and the landing pad under Let's Talk) and
+`js/backdrops.js` (the flight plan behind Process and the city network behind Fly With Us).
+The earlier After Effects film is retired; `tools/film/` still rebuilds it if ever needed.
 
 `assets/city/thane-district.json` — building footprints, roads and lakes of Thane West from
 OpenStreetMap (© OpenStreetMap contributors, ODbL), built by `tools/district.py`. Heights are

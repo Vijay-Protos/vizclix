@@ -1,4 +1,7 @@
-/* The ground beneath the Perspective section: the site seen from the drone.
+/* The ground under the drone: the Perspective section's plan, and (dark, no property) the
+   landing pad under Let's Talk.
+
+   The Perspective section: the site seen from the drone.
    A field of blocks laid out as a plan, streets between them and the property's two towers in
    the middle. Scrolling raises the plan into buildings ("a plan shows the flat, we show the
    address"); the drone's rotor wash and the visitor's pointer send ripples across it.
@@ -32,19 +35,19 @@ const vert = /* glsl */`
   }`;
 
 const frag = /* glsl */`
-  uniform vec3 uTop, uLeft, uRight, uEmber;
-  uniform float uRise;
+  uniform vec3 uTop, uLeft, uRight, uEmber, uRim;
+  uniform float uRise, uCrestTop, uCrestSide;
   varying vec3 vN;
   varying float vWave, vOwn, vTop;
   void main() {
     vec3 c = vN.y > 0.5 ? uTop : (abs(vN.x) > 0.5 ? uLeft : uRight);
     // sunk tiles shade, so a trough reads as depth rather than a gap
     // pressed tops darken like ground in the drone's shade; a raised rim catches the light
-    if (vN.y > 0.5) c = vTop < 0.0 ? mix(c, uLeft * 0.82, clamp(-vTop * 2.6, 0.0, 0.85)) : mix(c, vec3(1.0), clamp(vWave * 0.9, 0.0, 0.35));
+    if (vN.y > 0.5) c = vTop < 0.0 ? mix(c, uLeft * 0.82, clamp(-vTop * 2.6, 0.0, 0.85)) : mix(c, uRim, clamp(vWave * 0.9, 0.0, 0.35));
     // the property: an ember roof that warms as it rises
     if (vOwn > 0.5) c = vN.y > 0.5 ? mix(c, uEmber, 0.35 + 0.6 * uRise) : mix(c, uLeft, 0.35);
     // a moving crest catches the light
-    c = mix(c, uEmber, clamp(abs(vWave) * 0.9, 0.0, 0.6) * (vN.y > 0.5 ? 0.07 : 0.14));
+    c = mix(c, uEmber, clamp(abs(vWave) * 0.9, 0.0, 0.6) * (vN.y > 0.5 ? uCrestTop : uCrestSide));
     gl_FragColor = vec4(c, 1.0);
     #include <colorspace_fragment>
   }`;
@@ -52,8 +55,8 @@ const frag = /* glsl */`
 // a fixed scatter, so the town is the same on every visit
 const hash = (i, j) => { const s = Math.sin(i * 127.1 + j * 311.7) * 43758.5453; return s - Math.floor(s); };
 
-export function createCubes(canvas, { reduce = false, colors } = {}) {
-  const col = { top: '#EDE8DF', left: '#D9D2C5', right: '#E4DED3', ember: '#FF6B35', ...colors };
+export function createCubes(canvas, { reduce = false, colors, property = true, crest = [0.07, 0.14] } = {}) {
+  const col = { top: '#EDE8DF', left: '#D9D2C5', right: '#E4DED3', ember: '#FF6B35', rim: '#FFFFFF', ...colors };
   const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true, powerPreference: 'low-power' });
   renderer.setClearColor(0x000000, 0);
   const scene = new THREE.Scene();
@@ -67,6 +70,7 @@ export function createCubes(canvas, { reduce = false, colors } = {}) {
       uRise: { value: reduce ? 1 : 0 }, uAmp: { value: 0.55 },
       uTop: { value: new THREE.Color(col.top) }, uLeft: { value: new THREE.Color(col.left) },
       uRight: { value: new THREE.Color(col.right) }, uEmber: { value: new THREE.Color(col.ember) },
+      uRim: { value: new THREE.Color(col.rim) }, uCrestTop: { value: crest[0] }, uCrestSide: { value: crest[1] },
     },
   });
 
@@ -88,7 +92,7 @@ export function createCubes(canvas, { reduce = false, colors } = {}) {
       const bi = Math.round(x), bj = Math.round(z);
       // the property: two towers on the central plot
       // two slender towers side by side on screen: (0,0) and its right-hand neighbour (1,-1)
-      const t1 = bi === 0 && bj === 0, t2 = bi === 1 && bj === -1;
+      const t1 = property && bi === 0 && bj === 0, t2 = property && bi === 1 && bj === -1;
       if (t1 || t2) { base[k] = t1 ? 1.5 : 1.15; own[k] = 1; fixed[k] = 1; continue; }
       // streets every fifth row and column; the central plot stays open ground around the towers
       const street = ((bi % 4) + 4) % 4 === 3 || ((bj % 4) + 4) % 4 === 3;
@@ -172,7 +176,7 @@ export function createCubes(canvas, { reduce = false, colors } = {}) {
     return e;
   }
 
-  let acc = 0, energy = 0, washT = 0, washDepth = 0, lastPtr = null, ptr = null, visible = false, lastRise = -1;
+  let acc = 0, energy = 0, washT = 0, washDepth = 0, lastPtr = null, ptr = null, visible = false, lastRise = -1, down = false;
   const onMove = (e) => {
     const r = canvas.getBoundingClientRect();
     const x = e.clientX - r.left, y = e.clientY - r.top;
@@ -218,6 +222,10 @@ export function createCubes(canvas, { reduce = false, colors } = {}) {
         washT += dt;
         if (g && washT > 0.42) { washT = 0; push(g.i, g.j, 0.035 * washDepth / 0.95, 1.2); }
       }
+      // touchdown: one strong ring rolls out across the pad as the drone sets down
+      const landed = !!(drone && (drone.land ?? 0) > 0.9);
+      if (landed && !down && wash) { push(wash.i, wash.j, 0.32, 1.6); energy = 1; }
+      down = landed;
       if (energy > EPS) {
         acc = Math.min(acc + dt, STEP * 6);
         while (acc >= STEP) { energy = step(); acc -= STEP; }
