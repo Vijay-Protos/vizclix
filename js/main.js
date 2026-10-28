@@ -741,6 +741,9 @@ async function boot3D() {
       ? { dpr: 1.5, seg: 110, dust: 220, aa: false, city: saveData ? 200 : 400 }
       : { dpr: 2, seg: 220, dust: 520, aa: true, city: 900 };
     world = createWorld({ canvas, drone, quality });
+    // compile every shader before the first frame, in parallel where the GPU driver allows it,
+    // instead of in one long blocking task on the first render
+    await world.renderer.compileAsync(world.scene, world.camera).catch(() => {});
     world.update({ T: 0, time: 0, dt: 0, light: 0, film: true });
     root.classList.add('world-on');
     if (!reduce) root.classList.add('gl'); // sections go transparent so the drone flies behind them
