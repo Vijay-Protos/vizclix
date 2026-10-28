@@ -14,9 +14,10 @@
  */
 import { cp, mkdir, rm, writeFile, readFile } from 'node:fs/promises'
 import { parseHTML } from 'linkedom'
+import { build, transform } from 'esbuild'
 
 const OUT = '_site'
-const STATIC = ['css', 'js', 'vendor', 'assets']
+const STATIC = ['assets']   // css, js and vendor/ are compiled below
 const PAYLOAD_URL = process.env.PAYLOAD_URL?.replace(/\/$/, '')
 const SITE = process.env.VIZCLIX_SITE || 'vizclix'
 
@@ -44,6 +45,17 @@ if (!PAYLOAD_URL) {
   html = document.toString()
   console.log(`Rendered from ${PAYLOAD_URL} (site "${SITE}", updated ${page.updatedAt}), ${files.size} media files`)
 }
+// The scripts as one tree-shaken, minified ES module graph: main.js plus a chunk per lazily loaded
+// part (3D world, night city, grounds, backdrops, sound), with only the parts of three.js they use.
+// The page no longer needs the import map; three resolves from node_modules (same version).
+await build({
+  entryPoints: ['js/main.js'], bundle: true, splitting: true, format: 'esm', minify: true,
+  target: 'es2020', outdir: `${OUT}/js`, chunkNames: 'chunks/[name]-[hash]', legalComments: 'none', logLevel: 'warning',
+})
+html = html.replace(/<script type="importmap">[\s\S]*?<\/script>\n?/, '')
+// The stylesheet inline: one less request ahead of the first paint
+const css = (await transform(await readFile('css/site.css', 'utf8'), { loader: 'css', minify: true })).code
+html = html.replace('<link rel="stylesheet" href="css/site.css">', () => `<style>${css}</style>`)
 await writeFile(`${OUT}/index.html`, html)
 
 function render(doc, d) {
