@@ -198,7 +198,7 @@ form.addEventListener('submit', async (e) => {
   e.preventDefault();
   form.classList.add('tried');
   if (!form.checkValidity()) { $(':invalid', form)?.focus(); status.textContent = 'Please check the highlighted fields.'; return; }
-  if (!endpoint) { status.textContent = 'Enquiries are not connected on this copy of the site. Please write to info@protossofttech.com.'; return; }
+  if (!endpoint) { status.textContent = 'Enquiries are not connected on this copy of the site. Please write to info@polycrayons.com.'; return; }
   const body = new URLSearchParams(new FormData(form));
   body.set('startedAt', String(startedAt));
   sendBtn.disabled = true; sendLabel.textContent = 'Sending…'; status.textContent = '';
@@ -218,10 +218,10 @@ form.addEventListener('submit', async (e) => {
       if (m) m.textContent = msg;
       wrap.classList.add('server-err');
     }
-    status.textContent = out.message || 'That did not go through. Please try again, or write to info@protossofttech.com.';
+    status.textContent = out.message || 'That did not go through. Please try again, or write to info@polycrayons.com.';
     $('.server-err input, .server-err textarea, .server-err select', form)?.focus();
   } catch {
-    status.textContent = 'Could not reach us. Check the connection and try again, or write to info@protossofttech.com.';
+    status.textContent = 'Could not reach us. Check the connection and try again, or write to info@polycrayons.com.';
   } finally {
     sendBtn.disabled = false; applyPath();
   }
