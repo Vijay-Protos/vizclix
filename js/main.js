@@ -1,4 +1,5 @@
 // VizClix — page choreography. One damped scroll value drives the 3D world and every scroll-linked text.
+import { track } from './analytics.js';
 const root = document.documentElement;
 const $ = (s, c = document) => c.querySelector(s);
 const $$ = (s, c = document) => [...c.querySelectorAll(s)];
@@ -177,6 +178,7 @@ function openEnquiry(path) {
   startedAt = Date.now();
   if (lenis) lenis.stop();
   enquiry.showModal();
+  track('enquiry_open', { enquiry_path: path === 'operator' ? 'operator' : 'shoot' });
 }
 enquiry.addEventListener('close', () => { if (lenis) lenis.start(); });
 $$('[data-enquire]').forEach((a) => a.addEventListener('click', (e) => {
@@ -206,6 +208,7 @@ form.addEventListener('submit', async (e) => {
     if (res.ok && out.status === 'success') {
       form.reset(); form.classList.remove('tried'); applyPath();
       form.hidden = true; done.hidden = false; enquiry.classList.add('sent'); enquiry.scrollTop = 0; $('h2', done).focus();
+      track('enquiry_submit');
       return;
     }
     for (const [name, msg] of Object.entries(out.fieldErrors || {})) {
