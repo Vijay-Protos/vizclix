@@ -366,7 +366,7 @@ function render(doc, d) {
   const f = d.footer
   $('.foot-row > .body').textContent = f.tagline ?? ''
   $('.contact-ph').textContent = f.contactLine ?? ''
-  for (const a of $$('a[href^="https://www.instagram.com"]')) if (f.instagram) a.setAttribute('href', f.instagram)
+  for (const a of $$('a[data-social="instagram"]')) if (f.instagram) a.setAttribute('href', f.instagram)
   for (const a of $$('a')) if (f.parentUrl && a.textContent.trim() === 'Part of Polycrayons') a.setAttribute('href', f.parentUrl)
 
   // ── The enquiry popup posts to the same CMS ──
@@ -391,7 +391,8 @@ function render(doc, d) {
   const json = JSON.parse(ld.textContent)
   json.url = seo.canonicalUrl
   if (share) json.image = new URL(share.src, seo.canonicalUrl).href
-  if (f.instagram) json.sameAs = [f.instagram]
+  // the CMS sets the Instagram profile; the other channels stay as written in index.html
+  if (f.instagram) json.sameAs = [f.instagram, ...(json.sameAs ?? []).filter((u) => !u.includes('instagram.com'))]
   if (f.parentUrl) json.parentOrganization.url = f.parentUrl
   ld.textContent = JSON.stringify(json)
 
