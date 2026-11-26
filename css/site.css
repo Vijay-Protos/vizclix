@@ -49,6 +49,7 @@ ol,ul{list-style:none}
 .bar.on-light{color:var(--ink)}
 .bar.on-light.solid{background:var(--bone);border-bottom-color:rgba(10,11,13,.14)}
 .brand{display:flex;align-items:center;gap:12px;font-size:17px;font-weight:400;letter-spacing:-.01em}
+.brand-logo{display:block;height:24px;width:auto;flex:none}
 .brand .sep{width:5px;height:5px;background:currentColor;opacity:.5}
 .brand-sub{font-size:15px;opacity:.6}
 .bar-mid{flex:1 1 auto;min-width:0;text-align:center;font-size:15px;opacity:.7;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
@@ -347,6 +348,7 @@ details.q .a{padding:0 48px 30px 0;color:#B4B8BF;line-height:1.7;max-width:60ch;
 
 /* footer */
 .foot{position:relative;z-index:2;background:var(--ink);padding:clamp(110px,14vw,230px) 0 44px}
+.foot-logo{display:block;width:min(100%,1080px);height:auto;margin:0 0 clamp(48px,6vw,96px);color:var(--bone)}
 .foot-word{font-size:clamp(90px,25vw,420px);font-weight:200;letter-spacing:-.06em;line-height:.8;margin:0 0 clamp(48px,6vw,96px) -.03em;color:var(--bone);overflow:hidden;padding-bottom:.1em}
 .foot-row{display:grid;grid-template-columns:minmax(0,4fr) minmax(0,5fr) minmax(0,3fr);gap:32px;align-items:start;border-top:1px solid var(--line);padding-top:32px}
 .foot nav{display:flex;flex-wrap:wrap;gap:10px 30px;font-size:16px}
