@@ -21,3 +21,12 @@ No prices, turnaround days or revision counts are invented: the page says they a
 | contact.head.note | clear |
 | footer.contactLine | "info@protossofttech.com" (phone and legal entity removed until the owner supplies them) |
 | study.caption | remove the square brackets only |
+
+## Also applied 26 Nov (second pass)
+- study.deliveredNote ("Durations, counts and fees set per project") cleared
+- partner.citiesNote ("network in formation — no coverage claimed yet") cleared
+- proof.slots emptied. Restore when real content exists:
+  - Client Words: "A real quote, with name, role and permission."
+  - Credentials Held: "Pilot certification and the airspace permissions actually in hand."
+
+Rollback: full pre-change CMS entry saved at ~/Backups/vizclix/vizclix-site-before-copy-cleanup-20261126.json (Mac).
