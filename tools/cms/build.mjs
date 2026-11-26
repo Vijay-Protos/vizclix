@@ -52,6 +52,9 @@ await build({
   entryPoints: ['js/main.js'], bundle: true, splitting: true, format: 'esm', minify: true,
   target: 'es2020', outdir: `${OUT}/js`, chunkNames: 'chunks/[name]-[hash]', legalComments: 'none', logLevel: 'warning',
 })
+// Google Analytics 4: the ID is public by design. GA4_MEASUREMENT_ID="" turns analytics off.
+const GA4 = process.env.GA4_MEASUREMENT_ID ?? 'G-L96FZ07QV4'
+html = html.replace('<meta name="ga-measurement-id" content="">', () => `<meta name="ga-measurement-id" content="${GA4}">`)
 html = html.replace(/<script type="importmap">[\s\S]*?<\/script>\n?/, '')
 // The stylesheet inline: one less request ahead of the first paint
 const css = (await transform(await readFile('css/site.css', 'utf8'), { loader: 'css', minify: true })).code

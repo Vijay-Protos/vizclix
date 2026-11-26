@@ -36,6 +36,8 @@ jobs:
           # To publish index.html as written, without a CMS, remove this line.
           PAYLOAD_URL: ${{ vars.PAYLOAD_URL || 'https://polycrayons.com' }}
           VIZCLIX_SITE: vizclix
+          # Google Analytics 4 measurement ID (public). A repository variable GA4_MEASUREMENT_ID overrides it.
+          GA4_MEASUREMENT_ID: ${{ vars.GA4_MEASUREMENT_ID || 'G-L96FZ07QV4' }}
       - uses: actions/upload-pages-artifact@v3
         with:
           path: _site
