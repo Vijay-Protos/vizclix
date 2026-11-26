@@ -52,6 +52,30 @@ good site stays up. Without `PAYLOAD_URL` it publishes `index.html` as written, 
 the site does not depend on the CMS; change the structure in `index.html`, the
 words in the admin.
 
+## Analytics
+Google Analytics 4 (measurement ID `G-L96FZ07QV4`, public by design) loads after the page has
+finished loading and the browser is idle (`js/analytics.js`). Events: `enquiry_open`,
+`enquiry_submit` (success only) and `whatsapp_click` (any wa.me / WhatsApp link). No personal
+data is sent. To use another property, set the repository variable `GA4_MEASUREMENT_ID`; set it
+to an empty value to turn analytics off. The site has no cookie banner.
+
+## Launch switch
+Until launch the page is `noindex, nofollow` with github.io canonical URLs. The switch is the
+repository variable `VIZCLIX_LAUNCH` (Settings > Secrets and variables > Actions > Variables).
+
+Launch:
+1. Add the variable `VIZCLIX_LAUNCH` with the value `1`.
+2. Run the "Build and publish" workflow (Actions tab, Run workflow), or publish from the CMS.
+3. Check https://www.vizclix.com/ (view source: no robots meta; canonical, og:url, og:image and
+   JSON-LD use `https://www.vizclix.com/`), plus `/robots.txt` and `/sitemap.xml`.
+4. Then submit the sitemap in Search Console.
+
+Roll back: delete the variable (or set it to anything but `1`) and run the workflow again. The
+page goes back to noindex with github.io URLs, and robots.txt and sitemap.xml are no longer
+published. Pages already indexed drop out after Google recrawls.
+
+Locally: `VIZCLIX_LAUNCH=1 PAYLOAD_URL=https://polycrayons.com npm run build`.
+
 ## Motion
 The page respects `prefers-reduced-motion` and falls back to a static layout.
 A visitor can override it from the hero prompt or the footer switch.

@@ -59,6 +59,37 @@ html = html.replace(/<script type="importmap">[\s\S]*?<\/script>\n?/, '')
 // The stylesheet inline: one less request ahead of the first paint
 const css = (await transform(await readFile('css/site.css', 'utf8'), { loader: 'css', minify: true })).code
 html = html.replace('<link rel="stylesheet" href="css/site.css">', () => `<style>${css}</style>`)
+
+// Launch switch: off (the default) leaves the page noindex with github.io URLs, exactly as before.
+// VIZCLIX_LAUNCH=1 makes the build output indexable and points every public URL at the real domain.
+if (process.env.VIZCLIX_LAUNCH === '1') {
+  const HOME = 'https://www.vizclix.com/'
+  const { document: doc } = parseHTML(html)
+  const must = (sel) => {
+    const el = doc.querySelector(sel)
+    if (!el) throw new Error(`launch: "${sel}" not found in the built page`)
+    return el
+  }
+  // (a) indexable: drop the robots meta (and any googlebot / X-Robots equivalents)
+  for (const el of doc.querySelectorAll('meta[name="robots" i], meta[name="googlebot" i], meta[http-equiv="X-Robots-Tag" i]')) el.remove()
+  // (b) canonical, og:url, og:image and JSON-LD on the real domain; the old base is whatever the page used
+  const oldBase = must('link[rel="canonical"]').getAttribute('href')
+  const move = (u) => (u && u.startsWith(oldBase) ? HOME + u.slice(oldBase.length) : u)
+  must('link[rel="canonical"]').setAttribute('href', HOME)
+  must('meta[property="og:url"]').setAttribute('content', HOME)
+  const og = must('meta[property="og:image"]')
+  og.setAttribute('content', move(og.getAttribute('content')))
+  const ld = must('script[type="application/ld+json"]')
+  const json = JSON.parse(ld.textContent)
+  json.url = HOME
+  if (json.image) json.image = move(json.image)
+  ld.textContent = JSON.stringify(json)
+  html = doc.toString()
+  // (c) robots.txt and (d) a one-URL sitemap
+  await writeFile(`${OUT}/robots.txt`, `User-agent: *\nAllow: /\n\nSitemap: ${HOME}sitemap.xml\n`)
+  await writeFile(`${OUT}/sitemap.xml`, `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n  <url><loc>${HOME}</loc></url>\n</urlset>\n`)
+  console.log('Launch mode: indexable, canonical https://www.vizclix.com/, robots.txt and sitemap.xml written')
+}
 await writeFile(`${OUT}/index.html`, html)
 
 function render(doc, d) {
